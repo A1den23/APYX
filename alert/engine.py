@@ -27,6 +27,9 @@ class AlertEngine:
         self.cooldown = cooldown
         self._states: dict[str, AlertState] = {}
 
+    def active_alerts(self) -> list[str]:
+        return [k for k, v in self._states.items() if v.active]
+
     def evaluate(
         self,
         *,

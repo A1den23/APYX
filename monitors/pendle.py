@@ -17,12 +17,11 @@ class PendleMarketSnapshot:
     pt_price: float
 
 
-def market_url(address: str) -> str:
-    return f"https://api-v2.pendle.finance/core/v1/markets/{address}"
+PENDLE_MARKET_URL = "https://api-v2.pendle.finance/core/v1/1/markets"
 
 
 async def fetch_pendle_market(session: ClientSession, *, name: str, address: str) -> PendleMarketSnapshot:
-    async with session.get(market_url(address)) as response:
+    async with session.get(f"{PENDLE_MARKET_URL}/{address}") as response:
         response.raise_for_status()
         payload = await response.json()
     return parse_pendle_market(name, payload)
@@ -31,9 +30,9 @@ async def fetch_pendle_market(session: ClientSession, *, name: str, address: str
 def parse_pendle_market(name: str, payload: dict) -> PendleMarketSnapshot:
     return PendleMarketSnapshot(
         name=name,
-        liquidity=float(payload["liquidity"]),
+        liquidity=float(payload["liquidity"]["usd"]),
         implied_apy=float(payload["impliedApy"]),
-        pt_price=float(payload["ptPrice"]),
+        pt_price=float(payload["pt"]["price"]["usd"]),
     )
 
 

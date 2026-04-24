@@ -8,7 +8,7 @@ from aiohttp import ClientSession
 from alert.engine import AlertEngine, AlertEvent
 
 
-DEFILLAMA_PRICE_URL = "https://coins.llama.fi/prices"
+DEFILLAMA_PRICE_URL = "https://coins.llama.fi/prices/current"
 
 
 def coin_id(address: str) -> str:
@@ -17,7 +17,7 @@ def coin_id(address: str) -> str:
 
 async def fetch_peg_price(session: ClientSession, *, address: str) -> float:
     key = coin_id(address)
-    async with session.get(DEFILLAMA_PRICE_URL, params={"coins": key}) as response:
+    async with session.get(f"{DEFILLAMA_PRICE_URL}/{key}") as response:
         response.raise_for_status()
         payload = await response.json()
     return parse_defillama_price(payload, key)

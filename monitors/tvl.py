@@ -8,27 +8,28 @@ from aiohttp import ClientSession
 from alert.engine import AlertEngine, AlertEvent
 from history import RollingMetricHistory
 
+STABLECOIN_URL = "https://stablecoins.llama.fi/stablecoins"
+
+
+async def fetch_tvl(session: ClientSession, *, stablecoin_id: str) -> float:
+    async with session.get(STABLECOIN_URL) as response:
+        response.raise_for_status()
+        payload = await response.json()
+    return parse_tvl(payload, stablecoin_id)
+
+
+def parse_tvl(payload: dict, stablecoin_id: str) -> float:
+    for asset in payload["peggedAssets"]:
+        if str(asset["id"]) == str(stablecoin_id):
+            return float(asset["circulating"]["peggedUSD"])
+    raise ValueError(f"Stablecoin {stablecoin_id} not found")
+
 
 def _exceeds_threshold(value: float, threshold: float) -> bool:
     magnitude = abs(value)
     return magnitude > threshold and not isclose(
         magnitude, threshold, rel_tol=0.0, abs_tol=1e-12
     )
-
-
-async def fetch_tvl(session: ClientSession, *, url: str) -> float:
-    async with session.get(url) as response:
-        response.raise_for_status()
-        payload = await response.json()
-    return parse_tvl(payload)
-
-
-def parse_tvl(payload: object) -> float:
-    if isinstance(payload, (int, float)):
-        return float(payload)
-    if isinstance(payload, dict) and "tvl" in payload:
-        return float(payload["tvl"])
-    raise ValueError(f"Unsupported TVL payload: {payload!r}")
 
 
 def evaluate_tvl(

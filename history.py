@@ -38,6 +38,12 @@ class RollingMetricHistory:
             sample for sample in samples if sample.timestamp >= cutoff
         )
 
+    def latest_sample(self, key: str) -> MetricSample | None:
+        samples = self._samples.get(key)
+        if not samples:
+            return None
+        return samples[-1]
+
     def latest_change(self, key: str, *, current: float) -> MetricChange | None:
         samples = self._samples.get(key)
         if not samples:

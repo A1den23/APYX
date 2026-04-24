@@ -17,7 +17,7 @@ class NamedAddress:
 @dataclass(frozen=True)
 class TvlToken:
     name: str
-    url: str
+    stablecoin_id: str
 
 
 @dataclass(frozen=True)

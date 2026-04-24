@@ -30,9 +30,7 @@ supply:
 tvl:
   tokens:
     - name: "apxUSD"
-      url: "https://api.llama.fi/tvl/apxUSD"
-    - name: "apyUSD"
-      url: "https://api.llama.fi/tvl/apyUSD"
+      stablecoin_id: "354"
   threshold_pct: 0.10
   window_minutes: 60
 
