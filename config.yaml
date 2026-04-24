@@ -1,0 +1,40 @@
+finnhub:
+  symbol: "STRC"
+  threshold_price: 95.0
+
+peg:
+  token:
+    name: "apxUSD"
+    address: "0x98A878b1Cd98131B271883B390f68D2c90674665"
+  threshold_pct: 0.003
+
+pendle:
+  markets:
+    - name: "apxUSD"
+      address: "0x50dce085af29caba28f7308bea57c4043757b491"
+    - name: "apyUSD"
+      address: "0x3c53fae231ad3c0408a8b6d33138bbff1caec330"
+  liquidity_drop_pct: 0.10
+  apy_change_pct: 0.10
+  pt_price_change_pct: 0.10
+  window_minutes: 60
+
+supply:
+  tokens:
+    - name: "apxUSD"
+      address: "0x98A878b1Cd98131B271883B390f68D2c90674665"
+    - name: "apyUSD"
+      address: "0x38EEb52F0771140d10c4E9A9a72349A329Fe8a6A"
+  threshold_pct: 0.10
+
+tvl:
+  tokens:
+    - name: "apxUSD"
+      url: "https://api.llama.fi/tvl/apxUSD"
+    - name: "apyUSD"
+      url: "https://api.llama.fi/tvl/apyUSD"
+  threshold_pct: 0.10
+  window_minutes: 60
+
+alert:
+  cooldown_minutes: 5
