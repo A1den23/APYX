@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from dotenv import load_dotenv
 import yaml
 
 
@@ -97,4 +99,29 @@ def load_app_config(path: str | Path = "config.yaml") -> AppConfig:
         alert=AlertConfig(
             cooldown_minutes=int(data["alert"]["cooldown_minutes"]),
         ),
+    )
+
+
+@dataclass(frozen=True)
+class EnvConfig:
+    finnhub_api_key: str
+    telegram_bot_token: str
+    telegram_chat_id: str
+    eth_rpc_url: str
+
+
+def _required_env(name: str) -> str:
+    value = os.getenv(name)
+    if value is None or value == "":
+        raise RuntimeError(f"Missing required environment variable: {name}")
+    return value
+
+
+def load_env_config(env_file: str | Path = ".env") -> EnvConfig:
+    load_dotenv(env_file)
+    return EnvConfig(
+        finnhub_api_key=_required_env("FINNHUB_API_KEY"),
+        telegram_bot_token=_required_env("TG_BOT_TOKEN"),
+        telegram_chat_id=_required_env("TG_CHAT_ID"),
+        eth_rpc_url=_required_env("ETH_RPC_URL"),
     )

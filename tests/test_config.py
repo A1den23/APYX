@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from config import load_app_config
+from config import load_app_config, load_env_config
 
 
 def write_config(tmp_path: Path) -> Path:
@@ -73,3 +73,17 @@ def test_load_app_config_uses_immutable_collections(tmp_path: Path) -> None:
         settings.supply.tokens.append(settings.supply.tokens[0])
     with pytest.raises(AttributeError):
         settings.tvl.tokens.append(settings.tvl.tokens[0])
+
+
+def test_load_env_config_reads_required_values(monkeypatch) -> None:
+    monkeypatch.setenv("FINNHUB_API_KEY", "finnhub-key")
+    monkeypatch.setenv("TG_BOT_TOKEN", "telegram-token")
+    monkeypatch.setenv("TG_CHAT_ID", "12345")
+    monkeypatch.setenv("ETH_RPC_URL", "https://rpc.example")
+
+    env = load_env_config()
+
+    assert env.finnhub_api_key == "finnhub-key"
+    assert env.telegram_bot_token == "telegram-token"
+    assert env.telegram_chat_id == "12345"
+    assert env.eth_rpc_url == "https://rpc.example"
