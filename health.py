@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from threading import Lock
+
+from errors import safe_error_message
 
 
 @dataclass
@@ -26,17 +28,15 @@ class HealthTracker:
 
     def record_success(self, name: str) -> None:
         with self._lock:
-            m = self._metrics.get(name)
-            if m:
-                m.last_success_at = datetime.now(timezone.utc)
-                m.success_count += 1
+            m = self._metrics.setdefault(name, MetricHealth())
+            m.last_success_at = datetime.now(timezone.utc)
+            m.success_count += 1
 
     def record_failure(self, name: str, error: str) -> None:
         with self._lock:
-            m = self._metrics.get(name)
-            if m:
-                m.last_error = error[:80]
-                m.fail_count += 1
+            m = self._metrics.setdefault(name, MetricHealth())
+            m.last_error = safe_error_message(error)
+            m.fail_count += 1
 
     @property
     def uptime(self) -> timedelta:

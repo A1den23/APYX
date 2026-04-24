@@ -10,6 +10,8 @@ class AlertEvent:
     title: str
     body: str
     timestamp: datetime
+    metric_key: str = ""
+    previous_state: "AlertState | None" = None
 
     def telegram_text(self) -> str:
         stamp = self.timestamp.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -42,6 +44,10 @@ class AlertEngine:
         now: datetime,
     ) -> AlertEvent | None:
         state = self._states.setdefault(metric_key, AlertState())
+        previous_state = AlertState(
+            active=state.active,
+            last_sent_at=state.last_sent_at,
+        )
         if breached:
             if (
                 not state.active
@@ -50,11 +56,32 @@ class AlertEngine:
             ):
                 state.active = True
                 state.last_sent_at = now
-                return AlertEvent("ALERT", alert_title, alert_body, now)
+                return AlertEvent(
+                    "ALERT",
+                    alert_title,
+                    alert_body,
+                    now,
+                    metric_key=metric_key,
+                    previous_state=previous_state,
+                )
             return None
 
         if state.active:
             state.active = False
-            return AlertEvent("RECOVERY", recovery_title, recovery_body, now)
+            return AlertEvent(
+                "RECOVERY",
+                recovery_title,
+                recovery_body,
+                now,
+                metric_key=metric_key,
+                previous_state=previous_state,
+            )
 
         return None
+
+    def rollback(self, event: AlertEvent) -> None:
+        if not event.metric_key or event.previous_state is None:
+            return
+        state = self._states.setdefault(event.metric_key, AlertState())
+        state.active = event.previous_state.active
+        state.last_sent_at = event.previous_state.last_sent_at

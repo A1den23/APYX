@@ -31,6 +31,8 @@ tvl:
   tokens:
     - name: "apxUSD"
       stablecoin_id: "354"
+    - name: "apyUSD"
+      address: "0x38EEb52F0771140d10c4E9A9a72349A329Fe8a6A"
   threshold_pct: 0.10
   window_minutes: 60
 

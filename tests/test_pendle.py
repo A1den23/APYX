@@ -6,7 +6,11 @@ from monitors.pendle import PendleMarketSnapshot, evaluate_pendle_market, parse_
 
 
 def test_parse_pendle_market_extracts_snapshot() -> None:
-    payload = {"liquidity": 2500000, "impliedApy": 0.081, "ptPrice": 0.962}
+    payload = {
+        "liquidity": {"usd": 2500000},
+        "impliedApy": 0.081,
+        "pt": {"price": {"usd": 0.962}},
+    }
 
     snapshot = parse_pendle_market("apxUSD", payload)
 

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import sys
 from datetime import datetime, timedelta, timezone
 
 from aiohttp import ClientSession
@@ -12,19 +11,38 @@ from web3 import Web3
 from alert.engine import AlertEngine, AlertEvent
 from alert.telegram import TelegramSender
 from config import AppConfig, EnvConfig, load_app_config, load_env_config
+from errors import safe_error_message
 from health import HealthTracker
 from history import RollingMetricHistory
 from status import build_status_message, build_health_message
 from monitors.peg import evaluate_peg_price, fetch_peg_price
 from monitors.pendle import evaluate_pendle_market, fetch_pendle_market
 from monitors.strc_price import evaluate_strc_price, fetch_strc_price
-from monitors.supply import evaluate_supply, fetch_total_supply
-from monitors.tvl import evaluate_tvl, fetch_tvl
+from monitors.supply import evaluate_supply, fetch_total_supply_async
+from monitors.tvl import evaluate_tvl, fetch_tvl_for_token
 
 
-async def send_events(sender: TelegramSender, events: list[AlertEvent]) -> None:
+RPC_TIMEOUT_SECONDS = 20
+
+
+async def send_events(
+    sender: TelegramSender,
+    events: list[AlertEvent],
+    *,
+    engine: AlertEngine,
+    tracker: HealthTracker,
+) -> None:
     for event in events:
-        await sender.send(event)
+        try:
+            await sender.send(event)
+        except Exception as e:
+            engine.rollback(event)
+            safe_error = safe_error_message(e)
+            tracker.record_failure(f"alert:{event.metric_key or event.kind}", safe_error)
+            print(
+                f"Failed to send alert {event.metric_key or event.kind}: {safe_error}",
+                flush=True,
+            )
 
 
 def _register_monitors(tracker: HealthTracker, settings: AppConfig) -> None:
@@ -69,7 +87,7 @@ async def run_one_minute_checks(
     for token in settings.supply.tokens:
         key = f"supply:{token.name}"
         try:
-            supply = fetch_total_supply(web3, address=token.address)
+            supply = await fetch_total_supply_async(web3, address=token.address)
             supply_event = evaluate_supply(
                 token_name=token.name,
                 supply=supply,
@@ -84,12 +102,13 @@ async def run_one_minute_checks(
         except Exception as e:
             tracker.record_failure(key, str(e))
 
-    await send_events(sender, events)
+    await send_events(sender, events, engine=engine, tracker=tracker)
 
 
 async def run_five_minute_checks(
     *,
     session: ClientSession,
+    web3: Web3,
     settings: AppConfig,
     env: EnvConfig,
     history: RollingMetricHistory,
@@ -141,7 +160,7 @@ async def run_five_minute_checks(
     for token in settings.tvl.tokens:
         key = f"tvl:{token.name}"
         try:
-            tvl = await fetch_tvl(session, stablecoin_id=token.stablecoin_id)
+            tvl = await fetch_tvl_for_token(session, web3, token)
             tvl_event = evaluate_tvl(
                 token_name=token.name,
                 tvl=tvl,
@@ -157,7 +176,7 @@ async def run_five_minute_checks(
         except Exception as e:
             tracker.record_failure(key, str(e))
 
-    await send_events(sender, events)
+    await send_events(sender, events, engine=engine, tracker=tracker)
 
 
 async def run_service(*, once: bool) -> None:
@@ -168,7 +187,12 @@ async def run_service(*, once: bool) -> None:
     tracker = HealthTracker()
     _register_monitors(tracker, settings)
     sender = TelegramSender(env.telegram_bot_token, env.telegram_chat_id)
-    web3 = Web3(Web3.HTTPProvider(env.eth_rpc_url))
+    web3 = Web3(
+        Web3.HTTPProvider(
+            env.eth_rpc_url,
+            request_kwargs={"timeout": RPC_TIMEOUT_SECONDS},
+        )
+    )
 
     async with ClientSession() as session:
         if once:
@@ -183,6 +207,7 @@ async def run_service(*, once: bool) -> None:
             )
             await run_five_minute_checks(
                 session=session,
+                web3=web3,
                 settings=settings,
                 env=env,
                 history=history,
@@ -215,6 +240,7 @@ async def run_service(*, once: bool) -> None:
             minutes=5,
             kwargs={
                 "session": session,
+                "web3": web3,
                 "settings": settings,
                 "env": env,
                 "history": history,
@@ -242,7 +268,7 @@ async def run_service(*, once: bool) -> None:
             )
             print("Telegram command listener started", flush=True)
         except Exception as e:
-            print(f"Failed to start command listener: {e}", flush=True)
+            print(f"Failed to start command listener: {safe_error_message(e)}", flush=True)
         scheduler.start()
         await asyncio.Event().wait()
 

@@ -17,7 +17,8 @@ class NamedAddress:
 @dataclass(frozen=True)
 class TvlToken:
     name: str
-    stablecoin_id: str
+    stablecoin_id: str | None = None
+    address: str | None = None
 
 
 @dataclass(frozen=True)
@@ -92,7 +93,7 @@ def load_app_config(path: str | Path = "config.yaml") -> AppConfig:
             threshold_pct=float(data["supply"]["threshold_pct"]),
         ),
         tvl=TvlConfig(
-            tokens=tuple(TvlToken(**item) for item in data["tvl"]["tokens"]),
+            tokens=tuple(_load_tvl_token(item) for item in data["tvl"]["tokens"]),
             threshold_pct=float(data["tvl"]["threshold_pct"]),
             window_minutes=int(data["tvl"]["window_minutes"]),
         ),
@@ -100,6 +101,17 @@ def load_app_config(path: str | Path = "config.yaml") -> AppConfig:
             cooldown_minutes=int(data["alert"]["cooldown_minutes"]),
         ),
     )
+
+
+def _load_tvl_token(item: dict) -> TvlToken:
+    token = TvlToken(
+        name=item["name"],
+        stablecoin_id=item.get("stablecoin_id"),
+        address=item.get("address"),
+    )
+    if token.stablecoin_id is None and token.address is None:
+        raise ValueError(f"TVL token {token.name} needs stablecoin_id or address")
+    return token
 
 
 @dataclass(frozen=True)

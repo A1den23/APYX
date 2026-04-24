@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 from math import isclose
 
@@ -39,6 +40,10 @@ def fetch_total_supply(web3: Web3, *, address: str) -> float:
     raw_supply = contract.functions.totalSupply().call()
     decimals = contract.functions.decimals().call()
     return float(raw_supply) / float(10**decimals)
+
+
+async def fetch_total_supply_async(web3: Web3, *, address: str) -> float:
+    return await asyncio.to_thread(fetch_total_supply, web3, address=address)
 
 
 def evaluate_supply(

@@ -1,19 +1,25 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from html import escape
 
 from aiohttp import ClientSession
 from web3 import Web3
 
 from alert.engine import AlertEngine
 from config import AppConfig, EnvConfig
+from errors import safe_error_message
 from health import HealthTracker
 from history import RollingMetricHistory
 from monitors.peg import fetch_peg_price
 from monitors.pendle import fetch_pendle_market
 from monitors.strc_price import fetch_strc_price
-from monitors.supply import fetch_total_supply
-from monitors.tvl import fetch_tvl
+from monitors.supply import fetch_total_supply_async
+from monitors.tvl import fetch_tvl_for_token
+
+
+def _html_error(error: Exception) -> str:
+    return escape(safe_error_message(error))
 
 
 async def build_status_message(
@@ -37,7 +43,7 @@ async def build_status_message(
         strc_price = await fetch_strc_price(session, api_key=env.finnhub_api_key, symbol=settings.finnhub.symbol)
         lines.append(f"  STRC  <b>${strc_price:.2f}</b>  预警 &lt;${settings.finnhub.threshold_price:.2f}")
     except Exception as e:
-        lines.append(f"  STRC  ERROR - {e}")
+        lines.append(f"  STRC  ERROR - {_html_error(e)}")
     keys.append("strc:price")
     section_data.append(("🌐 宏观风险", lines, keys))
 
@@ -52,7 +58,7 @@ async def build_status_message(
             lines.append(f"    APY  <b>{snap.implied_apy:.2%}</b>  预警 ±{settings.pendle.apy_change_pct:.0%}")
             lines.append(f"    PT价格  <b>${snap.pt_price:.4f}</b>  预警 ±{settings.pendle.pt_price_change_pct:.0%}")
         except Exception as e:
-            lines.append(f"  <b>{market.name}</b>  ERROR - {e}")
+            lines.append(f"  <b>{market.name}</b>  ERROR - {_html_error(e)}")
         keys.extend([
             f"pendle_liquidity:{market.name}",
             f"pendle_apy:{market.name}",
@@ -68,23 +74,23 @@ async def build_status_message(
         peg_price = await fetch_peg_price(session, address=settings.peg.token.address)
         lines.append(f"  {settings.peg.token.name} 价格  <b>${peg_price:.4f}</b>  预警 偏离&gt;{settings.peg.threshold_pct:.2%}")
     except Exception as e:
-        lines.append(f"  {settings.peg.token.name} 价格  ERROR - {e}")
+        lines.append(f"  {settings.peg.token.name} 价格  ERROR - {_html_error(e)}")
     keys.append(f"peg:{settings.peg.token.name}")
 
     for token in settings.supply.tokens:
         try:
-            supply = fetch_total_supply(web3, address=token.address)
+            supply = await fetch_total_supply_async(web3, address=token.address)
             lines.append(f"  {token.name} 供应  <b>{supply/1e6:.2f}M</b>  预警 ±{settings.supply.threshold_pct:.0%}")
         except Exception as e:
-            lines.append(f"  {token.name} 供应  ERROR - {e}")
+            lines.append(f"  {token.name} 供应  ERROR - {_html_error(e)}")
         keys.append(f"supply:{token.name}")
 
     for token in settings.tvl.tokens:
         try:
-            tvl = await fetch_tvl(session, stablecoin_id=token.stablecoin_id)
+            tvl = await fetch_tvl_for_token(session, web3, token)
             lines.append(f"  {token.name} TVL  <b>${tvl/1e6:.2f}M</b>  预警 ±{settings.tvl.threshold_pct:.0%}")
         except Exception as e:
-            lines.append(f"  {token.name} TVL  ERROR - {e}")
+            lines.append(f"  {token.name} TVL  ERROR - {_html_error(e)}")
         keys.append(f"tvl:{token.name}")
 
     section_data.append(("🔐 协议安全", lines, keys))
@@ -117,8 +123,6 @@ async def build_health_message(
     tracker: HealthTracker,
     engine: AlertEngine,
 ) -> str:
-    from health import HealthTracker
-
     now = datetime.now(timezone.utc)
     up = tracker.uptime
     days = up.days
@@ -132,6 +136,7 @@ async def build_health_message(
         uptime_str = f"{minutes}m {seconds}s"
 
     snap = tracker.snapshot()
+    monitor_count = sum(1 for m in snap.values() if m.interval_seconds > 0)
     total, ok, fail = tracker.total_runs()
     rate = f"{ok/total*100:.1f}%" if total else "N/A"
 
@@ -140,9 +145,9 @@ async def build_health_message(
         "",
         "【Daemon】",
         f"✅ 运行中  uptime: {uptime_str}",
-        f"监控器: {len(snap)} 启用",
+        f"监控器: {monitor_count} 启用",
         "",
-        f"【总运行】",
+        "【总运行】",
     ]
 
     if fail == 0:
@@ -156,6 +161,8 @@ async def build_health_message(
     stale_items: list[tuple[str, float, float]] = []
     fresh_items: list[tuple[str, float, float]] = []
     for name, m in sorted(snap.items()):
+        if m.interval_seconds <= 0:
+            continue
         if m.last_success_at:
             age_minutes = (now_utc - m.last_success_at).total_seconds() / 60
             interval_min = m.interval_seconds / 60

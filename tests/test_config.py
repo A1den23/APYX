@@ -33,7 +33,9 @@ supply:
 tvl:
   tokens:
     - name: "apxUSD"
-      url: "https://api.llama.fi/tvl/apxUSD"
+      stablecoin_id: "354"
+    - name: "apyUSD"
+      address: "0x38EEb52F0771140d10c4E9A9a72349A329Fe8a6A"
   threshold_pct: 0.10
   window_minutes: 60
 alert:
@@ -54,7 +56,10 @@ def test_load_app_config_parses_thresholds_and_addresses(tmp_path: Path) -> None
     assert settings.peg.token.name == "apxUSD"
     assert settings.peg.threshold_pct == 0.003
     assert settings.pendle.markets[0].address == "0x50dce085af29caba28f7308bea57c4043757b491"
-    assert settings.tvl.tokens[0].url == "https://api.llama.fi/tvl/apxUSD"
+    assert settings.tvl.tokens[0].stablecoin_id == "354"
+    assert settings.tvl.tokens[0].address is None
+    assert settings.tvl.tokens[1].stablecoin_id is None
+    assert settings.tvl.tokens[1].address == "0x38EEb52F0771140d10c4E9A9a72349A329Fe8a6A"
     assert settings.alert.cooldown_minutes == 5
 
 
