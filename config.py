@@ -15,13 +15,6 @@ class NamedAddress:
 
 
 @dataclass(frozen=True)
-class TvlToken:
-    name: str
-    stablecoin_id: str | None = None
-    address: str | None = None
-
-
-@dataclass(frozen=True)
 class FinnhubConfig:
     symbol: str
     threshold_price: float
@@ -50,8 +43,16 @@ class SupplyConfig:
 
 @dataclass(frozen=True)
 class TvlConfig:
-    tokens: tuple[TvlToken, ...]
+    tokens: tuple[NamedAddress, ...]
     threshold_pct: float
+    window_minutes: int
+
+
+@dataclass(frozen=True)
+class ApyUsdConfig:
+    token: NamedAddress
+    total_assets_change_pct: float
+    price_apxusd_change_pct: float
     window_minutes: int
 
 
@@ -67,6 +68,7 @@ class AppConfig:
     pendle: PendleConfig
     supply: SupplyConfig
     tvl: TvlConfig
+    apyusd: ApyUsdConfig
     alert: AlertConfig
 
 
@@ -93,25 +95,20 @@ def load_app_config(path: str | Path = "config.yaml") -> AppConfig:
             threshold_pct=float(data["supply"]["threshold_pct"]),
         ),
         tvl=TvlConfig(
-            tokens=tuple(_load_tvl_token(item) for item in data["tvl"]["tokens"]),
+            tokens=tuple(NamedAddress(**item) for item in data["tvl"]["tokens"]),
             threshold_pct=float(data["tvl"]["threshold_pct"]),
             window_minutes=int(data["tvl"]["window_minutes"]),
+        ),
+        apyusd=ApyUsdConfig(
+            token=NamedAddress(**data["apyusd"]["token"]),
+            total_assets_change_pct=float(data["apyusd"]["total_assets_change_pct"]),
+            price_apxusd_change_pct=float(data["apyusd"]["price_apxusd_change_pct"]),
+            window_minutes=int(data["apyusd"]["window_minutes"]),
         ),
         alert=AlertConfig(
             cooldown_minutes=int(data["alert"]["cooldown_minutes"]),
         ),
     )
-
-
-def _load_tvl_token(item: dict) -> TvlToken:
-    token = TvlToken(
-        name=item["name"],
-        stablecoin_id=item.get("stablecoin_id"),
-        address=item.get("address"),
-    )
-    if token.stablecoin_id is None and token.address is None:
-        raise ValueError(f"TVL token {token.name} needs stablecoin_id or address")
-    return token
 
 
 @dataclass(frozen=True)

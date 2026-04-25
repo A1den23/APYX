@@ -7,6 +7,7 @@ __pycache__
 .codex
 tests
 docs
+logs
 requirements-dev.txt
 pytest.ini
 README.md

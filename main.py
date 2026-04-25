@@ -15,6 +15,12 @@ from errors import safe_error_message
 from health import HealthTracker
 from history import RollingMetricHistory
 from status import build_status_message, build_health_message
+from monitors.apyusd import (
+    evaluate_price_apxusd,
+    evaluate_total_assets,
+    fetch_price_apxusd_async,
+    fetch_total_assets_async,
+)
 from monitors.peg import evaluate_peg_price, fetch_peg_price
 from monitors.pendle import evaluate_pendle_market, fetch_pendle_market
 from monitors.strc_price import evaluate_strc_price, fetch_strc_price
@@ -23,6 +29,7 @@ from monitors.tvl import evaluate_tvl, fetch_tvl_for_token
 
 
 RPC_TIMEOUT_SECONDS = 20
+JOB_MISFIRE_GRACE_SECONDS = 30
 
 
 async def send_events(
@@ -50,6 +57,9 @@ def _register_monitors(tracker: HealthTracker, settings: AppConfig) -> None:
     for token in settings.supply.tokens:
         tracker.register(f"supply:{token.name}", 60)
     tracker.register("strc", 300)
+    tracker.register(f"total_assets:{settings.apyusd.token.name}", 300)
+    tracker.register("apyusd_price_apxusd", 300)
+    tracker.register("telegram_commands", 0)
     for market in settings.pendle.markets:
         tracker.register(f"pendle:{market.name}", 300)
     for token in settings.tvl.tokens:
@@ -176,6 +186,42 @@ async def run_five_minute_checks(
         except Exception as e:
             tracker.record_failure(key, str(e))
 
+    key = f"total_assets:{settings.apyusd.token.name}"
+    try:
+        total_assets = await fetch_total_assets_async(web3, address=settings.apyusd.token.address)
+        total_assets_event = evaluate_total_assets(
+            token_name=settings.apyusd.token.name,
+            total_assets=total_assets,
+            threshold_pct=settings.apyusd.total_assets_change_pct,
+            window_minutes=settings.apyusd.window_minutes,
+            history=history,
+            engine=engine,
+            now=now,
+        )
+        if total_assets_event is not None:
+            events.append(total_assets_event)
+        tracker.record_success(key)
+    except Exception as e:
+        tracker.record_failure(key, str(e))
+
+    try:
+        price_apxusd = await fetch_price_apxusd_async(
+            web3, address=settings.apyusd.token.address
+        )
+        price_event = evaluate_price_apxusd(
+            price_apxusd=price_apxusd,
+            threshold_pct=settings.apyusd.price_apxusd_change_pct,
+            window_minutes=settings.apyusd.window_minutes,
+            history=history,
+            engine=engine,
+            now=now,
+        )
+        if price_event is not None:
+            events.append(price_event)
+        tracker.record_success("apyusd_price_apxusd")
+    except Exception as e:
+        tracker.record_failure("apyusd_price_apxusd", str(e))
+
     await send_events(sender, events, engine=engine, tracker=tracker)
 
 
@@ -233,6 +279,7 @@ async def run_service(*, once: bool) -> None:
             },
             max_instances=1,
             coalesce=True,
+            misfire_grace_time=JOB_MISFIRE_GRACE_SECONDS,
         )
         scheduler.add_job(
             run_five_minute_checks,
@@ -250,6 +297,7 @@ async def run_service(*, once: bool) -> None:
             },
             max_instances=1,
             coalesce=True,
+            misfire_grace_time=JOB_MISFIRE_GRACE_SECONDS,
         )
         try:
             await sender.start_commands(
@@ -264,6 +312,9 @@ async def run_service(*, once: bool) -> None:
                 health_fn=lambda: build_health_message(
                     tracker=tracker,
                     engine=engine,
+                ),
+                error_fn=lambda error: tracker.record_failure(
+                    "telegram_commands", error
                 ),
             )
             print("Telegram command listener started", flush=True)

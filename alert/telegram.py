@@ -4,9 +4,9 @@ import asyncio
 from collections.abc import Callable, Coroutine
 
 from telegram import Bot, Update
-from telegram.ext import Application, CommandHandler, ContextTypes
 
 from alert.engine import AlertEvent
+from errors import safe_error_message
 
 POLL_INTERVAL = 2
 POLL_TIMEOUT = 10
@@ -21,6 +21,7 @@ class TelegramSender:
         self._poll_task: asyncio.Task | None = None
         self._status_fn: Callable[[], Coroutine] | None = None
         self._health_fn: Callable[[], Coroutine] | None = None
+        self._error_fn: Callable[[str], None] | None = None
 
     async def send(self, event: AlertEvent) -> None:
         await self._bot.send_message(chat_id=self._chat_id, text=event.telegram_text())
@@ -29,9 +30,11 @@ class TelegramSender:
         self,
         status_fn: Callable[[], Coroutine],
         health_fn: Callable[[], Coroutine],
+        error_fn: Callable[[str], None] | None = None,
     ) -> None:
         self._status_fn = status_fn
         self._health_fn = health_fn
+        self._error_fn = error_fn
         self._poll_task = asyncio.create_task(self._poll_loop())
 
     async def _poll_loop(self) -> None:
@@ -47,8 +50,11 @@ class TelegramSender:
                 for update in updates:
                     self._offset = update.update_id + 1
                     await self._dispatch(update)
-            except Exception:
-                pass
+            except Exception as e:
+                safe_error = safe_error_message(e)
+                if self._error_fn is not None:
+                    self._error_fn(safe_error)
+                print(f"Telegram command polling failed: {safe_error}", flush=True)
             await asyncio.sleep(POLL_INTERVAL)
 
     async def _dispatch(self, update: Update) -> None:

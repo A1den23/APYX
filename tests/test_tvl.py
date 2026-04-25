@@ -1,37 +1,24 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
 
-from config import TvlToken
+from config import NamedAddress
 from alert.engine import AlertEngine
 from history import RollingMetricHistory
-from monitors.tvl import evaluate_tvl, fetch_tvl_for_token, parse_tvl
+from monitors.tvl import evaluate_tvl, fetch_tvl_for_token
 
 
-def test_parse_tvl_extracts_stablecoin_circulating_value() -> None:
-    payload = {
-        "peggedAssets": [
-            {"id": 353, "circulating": {"peggedUSD": 1.0}},
-            {"id": 354, "circulating": {"peggedUSD": 1234567.89}},
-        ]
-    }
-
-    assert parse_tvl(payload, "354") == 1234567.89
-
-
-def test_fetch_tvl_for_token_uses_onchain_supply_when_no_stablecoin_id(monkeypatch) -> None:
+def test_fetch_tvl_for_token_uses_onchain_total_supply(monkeypatch) -> None:
     async def fake_fetch_total_supply_async(web3, *, address: str) -> float:
-        assert address == "0x38EEb52F0771140d10c4E9A9a72349A329Fe8a6A"
-        return 987654.0
+        assert address == "0x98A878b1Cd98131B271883B390f68D2c90674665"
+        return 194987002.0
 
-    monkeypatch.setattr(
-        "monitors.tvl.fetch_total_supply_async", fake_fetch_total_supply_async
-    )
-    token = TvlToken(
-        name="apyUSD",
-        address="0x38EEb52F0771140d10c4E9A9a72349A329Fe8a6A",
+    monkeypatch.setattr("monitors.tvl.fetch_total_supply_async", fake_fetch_total_supply_async)
+    token = NamedAddress(
+        name="apxUSD",
+        address="0x98A878b1Cd98131B271883B390f68D2c90674665",
     )
 
-    assert asyncio.run(fetch_tvl_for_token(None, object(), token)) == 987654.0
+    assert asyncio.run(fetch_tvl_for_token(None, object(), token)) == 194987002.0
 
 
 def test_evaluate_tvl_alerts_on_one_hour_change() -> None:

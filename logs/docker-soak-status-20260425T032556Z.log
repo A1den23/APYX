@@ -1,0 +1,10 @@
+
+# log_follow_exit_status=124
+# finished_log_follow_utc=2026-04-25T04:31:22Z
+
+## final ps
+NAME          IMAGE       COMMAND            SERVICE   CREATED             STATUS             PORTS
+apyx-apyx-1   apyx-apyx   "python main.py"   apyx      About an hour ago   Up About an hour   
+
+## final logs tail
+apyx-1  | 2026-04-25T03:26:02.937091289Z Telegram command listener started

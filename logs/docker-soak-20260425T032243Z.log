@@ -1,0 +1,90 @@
+# APYX Docker soak test
+# started_utc=2026-04-25T03:22:43Z
+# log_file=logs/docker-soak-20260425T032243Z.log
+# status_file=logs/docker-soak-status-20260425T032243Z.log
+
+## docker compose build
+ Image apyx-apyx Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 490B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 323B done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/python:3.12-slim
+#3 DONE 0.9s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 148B done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 3.29kB done
+#5 DONE 0.0s
+
+#6 [1/6] FROM docker.io/library/python:3.12-slim@sha256:46cb7cc2877e60fbd5e21a9ae6115c30ace7a077b9f8772da879e4590c18c2e3
+#6 resolve docker.io/library/python:3.12-slim@sha256:46cb7cc2877e60fbd5e21a9ae6115c30ace7a077b9f8772da879e4590c18c2e3 0.0s done
+#6 DONE 0.0s
+
+#7 [3/6] WORKDIR /app
+#7 CACHED
+
+#8 [2/6] RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev && rm -rf /var/lib/apt/lists/*
+#8 CACHED
+
+#9 [4/6] COPY requirements.txt .
+#9 CACHED
+
+#10 [5/6] RUN pip install --no-cache-dir -r requirements.txt
+#10 CACHED
+
+#11 [6/6] COPY . .
+#11 DONE 0.0s
+
+#12 exporting to image
+#12 exporting layers 0.1s done
+#12 exporting manifest sha256:a69bade5bed1b164786aaf5084aadce1837bec8b2a377facd57d2db70d0cad08 0.0s done
+#12 exporting config sha256:188c693a31dd1dfc39f49c86f42e6959815d08659c7ce0c4d8a743530327c6f2 done
+#12 exporting attestation manifest sha256:b9b3b5ac48b8d1845cb742b0dbf1bed2ca7ff097afb0ed6ce10ebbadca15af7f 0.0s done
+#12 exporting manifest list sha256:7dcc9941d0ed15971f8ef9a5f1a03c9b5cfeffa5f833ec76c345b8068c71beab done
+#12 naming to docker.io/library/apyx-apyx:latest done
+#12 unpacking to docker.io/library/apyx-apyx:latest
+#12 unpacking to docker.io/library/apyx-apyx:latest 1.6s done
+#12 DONE 1.8s
+
+#13 resolving provenance for metadata file
+#13 DONE 0.0s
+ Image apyx-apyx Built 
+
+## docker compose up -d
+ Network apyx_default Creating 
+ Network apyx_default Created 
+ Container apyx-apyx-1 Creating 
+ Container apyx-apyx-1 Created 
+ Container apyx-apyx-1 Starting 
+ Container apyx-apyx-1 Started 
+
+## initial ps
+NAME          IMAGE       COMMAND            SERVICE   CREATED        STATUS                  PORTS
+apyx-apyx-1   apyx-apyx   "python main.py"   apyx      1 second ago   Up Less than a second   
+
+## following logs for 3600 seconds
+apyx-1  | 2026-04-25T03:22:47.660423086Z Telegram command listener started
+apyx-1  | 2026-04-25T03:23:53.437569847Z Run time of job "run_one_minute_checks (trigger: interval[0:01:00], next run at: 2026-04-25 03:24:47 UTC)" was missed by 0:00:05.777153
+apyx-1  | 2026-04-25T03:24:53.427001522Z Run time of job "run_one_minute_checks (trigger: interval[0:01:00], next run at: 2026-04-25 03:25:47 UTC)" was missed by 0:00:05.766586
+[Kapyx-1 exited with code 137
+
+# log_follow_exit_status=0
+# finished_log_follow_utc=2026-04-25T03:25:30Z
+
+## final ps
+NAME      IMAGE     COMMAND   SERVICE   CREATED   STATUS    PORTS
+
+## final logs tail
+
+## stopping containers
+
+# stopped_utc=2026-04-25T03:25:30Z
+# down_status=0

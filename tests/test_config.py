@@ -33,10 +33,15 @@ supply:
 tvl:
   tokens:
     - name: "apxUSD"
-      stablecoin_id: "354"
-    - name: "apyUSD"
-      address: "0x38EEb52F0771140d10c4E9A9a72349A329Fe8a6A"
+      address: "0x98A878b1Cd98131B271883B390f68D2c90674665"
   threshold_pct: 0.10
+  window_minutes: 60
+apyusd:
+  token:
+    name: "apyUSD"
+    address: "0x38EEb52F0771140d10c4E9A9a72349A329Fe8a6A"
+  total_assets_change_pct: 0.10
+  price_apxusd_change_pct: 0.10
   window_minutes: 60
 alert:
   cooldown_minutes: 5
@@ -56,10 +61,11 @@ def test_load_app_config_parses_thresholds_and_addresses(tmp_path: Path) -> None
     assert settings.peg.token.name == "apxUSD"
     assert settings.peg.threshold_pct == 0.003
     assert settings.pendle.markets[0].address == "0x50dce085af29caba28f7308bea57c4043757b491"
-    assert settings.tvl.tokens[0].stablecoin_id == "354"
-    assert settings.tvl.tokens[0].address is None
-    assert settings.tvl.tokens[1].stablecoin_id is None
-    assert settings.tvl.tokens[1].address == "0x38EEb52F0771140d10c4E9A9a72349A329Fe8a6A"
+    assert settings.tvl.tokens[0].address == "0x98A878b1Cd98131B271883B390f68D2c90674665"
+    assert settings.apyusd.token.address == "0x38EEb52F0771140d10c4E9A9a72349A329Fe8a6A"
+    assert settings.apyusd.total_assets_change_pct == 0.10
+    assert settings.apyusd.price_apxusd_change_pct == 0.10
+    assert settings.apyusd.window_minutes == 60
     assert settings.alert.cooldown_minutes == 5
 
 

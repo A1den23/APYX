@@ -3,39 +3,18 @@ from __future__ import annotations
 from datetime import datetime
 from math import isclose
 
-from aiohttp import ClientSession
 from web3 import Web3
 
 from alert.engine import AlertEngine, AlertEvent
-from config import TvlToken
+from config import NamedAddress
 from history import RollingMetricHistory
 from monitors.supply import fetch_total_supply_async
 
-STABLECOIN_URL = "https://stablecoins.llama.fi/stablecoins"
-
-
-async def fetch_tvl(session: ClientSession, *, stablecoin_id: str) -> float:
-    async with session.get(STABLECOIN_URL) as response:
-        response.raise_for_status()
-        payload = await response.json()
-    return parse_tvl(payload, stablecoin_id)
-
 
 async def fetch_tvl_for_token(
-    session: ClientSession, web3: Web3, token: TvlToken
+    session: object, web3: Web3, token: NamedAddress
 ) -> float:
-    if token.stablecoin_id is not None:
-        return await fetch_tvl(session, stablecoin_id=token.stablecoin_id)
-    if token.address is not None:
-        return await fetch_total_supply_async(web3, address=token.address)
-    raise ValueError(f"TVL token {token.name} needs stablecoin_id or address")
-
-
-def parse_tvl(payload: dict, stablecoin_id: str) -> float:
-    for asset in payload["peggedAssets"]:
-        if str(asset["id"]) == str(stablecoin_id):
-            return float(asset["circulating"]["peggedUSD"])
-    raise ValueError(f"Stablecoin {stablecoin_id} not found")
+    return await fetch_total_supply_async(web3, address=token.address)
 
 
 def _exceeds_threshold(value: float, threshold: float) -> bool:

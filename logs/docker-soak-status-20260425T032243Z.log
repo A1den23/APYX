@@ -1,0 +1,8 @@
+
+# log_follow_exit_status=0
+# finished_log_follow_utc=2026-04-25T03:25:30Z
+
+## final ps
+NAME      IMAGE     COMMAND   SERVICE   CREATED   STATUS    PORTS
+
+## final logs tail
