@@ -22,6 +22,17 @@ def _html_error(error: Exception) -> str:
     return escape(safe_error_message(error))
 
 
+def _display_width(s: str) -> int:
+    return sum(2 if ord(c) > 0x7F else 1 for c in s)
+
+
+def _rpad(s: str, width: int) -> str:
+    return s + " " * max(1, width - _display_width(s))
+
+
+_LABEL_COL = 18
+
+
 async def build_status_message(
     *,
     session: ClientSession,
@@ -74,7 +85,7 @@ async def build_status_message(
     lines.append("  <b>apxUSD</b>")
     try:
         peg_price = await fetch_peg_price(session, address=settings.peg.token.address)
-        lines.append(f"    价格  <b>${peg_price:.4f}</b>  预警 偏离&gt;{settings.peg.threshold_pct:.2%}")
+        lines.append(f"    {_rpad('价格', _LABEL_COL)} <b>${peg_price:.4f}</b>  预警 偏离&gt;{settings.peg.threshold_pct:.2%}")
     except Exception as e:
         lines.append(f"    价格  ERROR - {_html_error(e)}")
     keys.append(f"peg:{settings.peg.token.name}")
@@ -85,7 +96,7 @@ async def build_status_message(
         try:
             supply = await fetch_total_supply_async(web3, address=token.address)
             lines.append(
-                f"    供应  <b>{supply/1e6:.2f}M</b>  "
+                f"    {_rpad('供应', _LABEL_COL)} <b>{supply/1e6:.2f}M</b>  "
                 f"预警 1m/30m ±{settings.supply.threshold_pct:.0%} "
                 f"或 ±{token.absolute_change_threshold/1e6:.2f}M"
             )
@@ -101,7 +112,7 @@ async def build_status_message(
         try:
             supply = await fetch_total_supply_async(web3, address=token.address)
             lines.append(
-                f"    供应 (share totalSupply)  <b>{supply/1e6:.2f}M</b>  "
+                f"    {_rpad('share totalSupply', _LABEL_COL)} <b>{supply/1e6:.2f}M</b>  "
                 f"预警 1m/30m ±{settings.supply.threshold_pct:.0%} "
                 f"或 ±{token.absolute_change_threshold/1e6:.2f}M"
             )
@@ -114,7 +125,7 @@ async def build_status_message(
             web3, address=settings.apyusd.token.address
         )
         lines.append(
-            f"    totalAssets  <b>{total_assets/1e6:.2f}M apxUSD</b>  "
+            f"    {_rpad('totalAssets', _LABEL_COL)} <b>{total_assets/1e6:.2f}M apxUSD</b>  "
             f"预警 1m/30m ±{settings.apyusd.total_assets_change_pct:.0%} "
             f"或 ±{settings.apyusd.total_assets_absolute_change_threshold/1e6:.2f}M"
         )
@@ -127,7 +138,7 @@ async def build_status_message(
             web3, address=settings.apyusd.token.address
         )
         lines.append(
-            f"    priceAPXUSD  <b>{price_apxusd:.4f} apxUSD</b>  "
+            f"    {_rpad('priceAPXUSD', _LABEL_COL)} <b>{price_apxusd:.4f} apxUSD</b>  "
             f"预警 1m/30m ±{settings.apyusd.price_apxusd_change_pct:.0%}"
         )
     except Exception as e:
