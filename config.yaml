@@ -17,30 +17,27 @@ pendle:
   liquidity_drop_pct: 0.10
   apy_change_pct: 0.10
   pt_price_change_pct: 0.10
-  window_minutes: 60
+  window_minutes: 30
 
 supply:
   tokens:
     - name: "apxUSD"
       address: "0x98A878b1Cd98131B271883B390f68D2c90674665"
+      absolute_change_threshold: 5000000
     - name: "apyUSD"
       address: "0x38EEb52F0771140d10c4E9A9a72349A329Fe8a6A"
+      absolute_change_threshold: 2000000
   threshold_pct: 0.10
-
-tvl:
-  tokens:
-    - name: "apxUSD"
-      address: "0x98A878b1Cd98131B271883B390f68D2c90674665"
-  threshold_pct: 0.10
-  window_minutes: 60
+  window_minutes: 30
 
 apyusd:
   token:
     name: "apyUSD"
     address: "0x38EEb52F0771140d10c4E9A9a72349A329Fe8a6A"
   total_assets_change_pct: 0.10
-  price_apxusd_change_pct: 0.10
-  window_minutes: 60
+  total_assets_absolute_change_threshold: 5000000
+  price_apxusd_change_pct: 0.05
+  window_minutes: 30
 
 alert:
   cooldown_minutes: 5

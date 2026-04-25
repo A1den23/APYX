@@ -16,7 +16,6 @@ from monitors.pendle import fetch_pendle_market
 from monitors.strc_price import fetch_strc_price
 from monitors.supply import fetch_total_supply_async
 from monitors.apyusd import fetch_price_apxusd_async, fetch_total_assets_async
-from monitors.tvl import fetch_tvl_for_token
 
 
 def _html_error(error: Exception) -> str:
@@ -71,42 +70,56 @@ async def build_status_message(
     lines = []
     keys = []
 
+    # apxUSD metrics
+    lines.append("  <b>apxUSD</b>")
     try:
         peg_price = await fetch_peg_price(session, address=settings.peg.token.address)
-        lines.append(f"  {settings.peg.token.name} 价格  <b>${peg_price:.4f}</b>  预警 偏离&gt;{settings.peg.threshold_pct:.2%}")
+        lines.append(f"    价格  <b>${peg_price:.4f}</b>  预警 偏离&gt;{settings.peg.threshold_pct:.2%}")
     except Exception as e:
-        lines.append(f"  {settings.peg.token.name} 价格  ERROR - {_html_error(e)}")
+        lines.append(f"    价格  ERROR - {_html_error(e)}")
     keys.append(f"peg:{settings.peg.token.name}")
 
     for token in settings.supply.tokens:
+        if token.name == "apyUSD":
+            continue
         try:
             supply = await fetch_total_supply_async(web3, address=token.address)
-            label = "供应"
-            if token.name == "apyUSD":
-                label = "供应 (share totalSupply)"
-            lines.append(f"  {token.name} {label}  <b>{supply/1e6:.2f}M</b>  预警 ±{settings.supply.threshold_pct:.0%}")
+            lines.append(
+                f"    供应  <b>{supply/1e6:.2f}M</b>  "
+                f"预警 1m/30m ±{settings.supply.threshold_pct:.0%} "
+                f"或 ±{token.absolute_change_threshold/1e6:.2f}M"
+            )
         except Exception as e:
-            lines.append(f"  {token.name} 供应  ERROR - {_html_error(e)}")
+            lines.append(f"    供应  ERROR - {_html_error(e)}")
         keys.append(f"supply:{token.name}")
 
-    for token in settings.tvl.tokens:
+    # apyUSD metrics
+    lines.append("  <b>apyUSD</b>")
+    for token in settings.supply.tokens:
+        if token.name != "apyUSD":
+            continue
         try:
-            tvl = await fetch_tvl_for_token(session, web3, token)
-            lines.append(f"  {token.name} TVL  <b>${tvl/1e6:.2f}M</b>  预警 ±{settings.tvl.threshold_pct:.0%}")
+            supply = await fetch_total_supply_async(web3, address=token.address)
+            lines.append(
+                f"    供应 (share totalSupply)  <b>{supply/1e6:.2f}M</b>  "
+                f"预警 1m/30m ±{settings.supply.threshold_pct:.0%} "
+                f"或 ±{token.absolute_change_threshold/1e6:.2f}M"
+            )
         except Exception as e:
-            lines.append(f"  {token.name} TVL  ERROR - {_html_error(e)}")
-        keys.append(f"tvl:{token.name}")
+            lines.append(f"    供应  ERROR - {_html_error(e)}")
+        keys.append(f"supply:{token.name}")
 
     try:
         total_assets = await fetch_total_assets_async(
             web3, address=settings.apyusd.token.address
         )
         lines.append(
-            f"  apyUSD totalAssets  <b>{total_assets/1e6:.2f}M apxUSD</b>  "
-            f"预警 ±{settings.apyusd.total_assets_change_pct:.0%}"
+            f"    totalAssets  <b>{total_assets/1e6:.2f}M apxUSD</b>  "
+            f"预警 1m/30m ±{settings.apyusd.total_assets_change_pct:.0%} "
+            f"或 ±{settings.apyusd.total_assets_absolute_change_threshold/1e6:.2f}M"
         )
     except Exception as e:
-        lines.append(f"  apyUSD totalAssets  ERROR - {_html_error(e)}")
+        lines.append(f"    totalAssets  ERROR - {_html_error(e)}")
     keys.append(f"total_assets:{settings.apyusd.token.name}")
 
     try:
@@ -114,11 +127,11 @@ async def build_status_message(
             web3, address=settings.apyusd.token.address
         )
         lines.append(
-            f"  apyUSD priceAPXUSD  <b>{price_apxusd:.4f} apxUSD</b>  "
-            f"预警 ±{settings.apyusd.price_apxusd_change_pct:.0%}"
+            f"    priceAPXUSD  <b>{price_apxusd:.4f} apxUSD</b>  "
+            f"预警 1m/30m ±{settings.apyusd.price_apxusd_change_pct:.0%}"
         )
     except Exception as e:
-        lines.append(f"  apyUSD priceAPXUSD  ERROR - {_html_error(e)}")
+        lines.append(f"    priceAPXUSD  ERROR - {_html_error(e)}")
     keys.append("apyusd_price_apxusd")
 
     section_data.append(("🔐 协议安全", lines, keys))

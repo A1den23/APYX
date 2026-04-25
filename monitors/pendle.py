@@ -86,7 +86,7 @@ def evaluate_pendle_market(
         if change is None:
             history.record(key, value, now)
             continue
-        body = f"{label}: {value_format.format(value)}\n1h change: {change.percent:+.2%}"
+        body = f"{label}: {value_format.format(value)}\n{window_minutes}m change: {change.percent:+.2%}"
         event = engine.evaluate(
             metric_key=key,
             breached=predicate(change.percent),

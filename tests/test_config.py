@@ -24,25 +24,22 @@ pendle:
   liquidity_drop_pct: 0.10
   apy_change_pct: 0.10
   pt_price_change_pct: 0.10
-  window_minutes: 60
+  window_minutes: 30
 supply:
   tokens:
     - name: "apxUSD"
       address: "0x98A878b1Cd98131B271883B390f68D2c90674665"
+      absolute_change_threshold: 5000000
   threshold_pct: 0.10
-tvl:
-  tokens:
-    - name: "apxUSD"
-      address: "0x98A878b1Cd98131B271883B390f68D2c90674665"
-  threshold_pct: 0.10
-  window_minutes: 60
+  window_minutes: 30
 apyusd:
   token:
     name: "apyUSD"
     address: "0x38EEb52F0771140d10c4E9A9a72349A329Fe8a6A"
   total_assets_change_pct: 0.10
-  price_apxusd_change_pct: 0.10
-  window_minutes: 60
+  total_assets_absolute_change_threshold: 5000000
+  price_apxusd_change_pct: 0.05
+  window_minutes: 30
 alert:
   cooldown_minutes: 5
 """.strip(),
@@ -61,11 +58,14 @@ def test_load_app_config_parses_thresholds_and_addresses(tmp_path: Path) -> None
     assert settings.peg.token.name == "apxUSD"
     assert settings.peg.threshold_pct == 0.003
     assert settings.pendle.markets[0].address == "0x50dce085af29caba28f7308bea57c4043757b491"
-    assert settings.tvl.tokens[0].address == "0x98A878b1Cd98131B271883B390f68D2c90674665"
+    assert settings.pendle.window_minutes == 30
+    assert settings.supply.tokens[0].absolute_change_threshold == 5000000
+    assert settings.supply.window_minutes == 30
+    assert settings.apyusd.total_assets_absolute_change_threshold == 5000000
     assert settings.apyusd.token.address == "0x38EEb52F0771140d10c4E9A9a72349A329Fe8a6A"
     assert settings.apyusd.total_assets_change_pct == 0.10
-    assert settings.apyusd.price_apxusd_change_pct == 0.10
-    assert settings.apyusd.window_minutes == 60
+    assert settings.apyusd.price_apxusd_change_pct == 0.05
+    assert settings.apyusd.window_minutes == 30
     assert settings.alert.cooldown_minutes == 5
 
 
@@ -76,14 +76,11 @@ def test_load_app_config_uses_immutable_collections(tmp_path: Path) -> None:
 
     assert isinstance(settings.pendle.markets, tuple)
     assert isinstance(settings.supply.tokens, tuple)
-    assert isinstance(settings.tvl.tokens, tuple)
 
     with pytest.raises(AttributeError):
         settings.pendle.markets.append(settings.pendle.markets[0])
     with pytest.raises(AttributeError):
         settings.supply.tokens.append(settings.supply.tokens[0])
-    with pytest.raises(AttributeError):
-        settings.tvl.tokens.append(settings.tvl.tokens[0])
 
 
 def test_load_env_config_reads_required_values(monkeypatch) -> None:

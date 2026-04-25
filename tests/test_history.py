@@ -13,10 +13,10 @@ def test_percent_change_returns_relative_delta() -> None:
 def test_window_change_uses_sample_at_or_before_cutoff() -> None:
     history = RollingMetricHistory()
     now = datetime(2026, 4, 24, 15, 0, tzinfo=timezone.utc)
-    history.record("tvl:apxUSD", 100.0, now - timedelta(minutes=65))
-    history.record("tvl:apxUSD", 98.0, now - timedelta(minutes=55))
+    history.record("metric:sample", 100.0, now - timedelta(minutes=65))
+    history.record("metric:sample", 98.0, now - timedelta(minutes=55))
 
-    change = history.window_change("tvl:apxUSD", current=85.0, now=now, window_minutes=60)
+    change = history.window_change("metric:sample", current=85.0, now=now, window_minutes=60)
 
     assert change is not None
     assert change.baseline == 100.0
@@ -27,12 +27,12 @@ def test_window_change_uses_sample_at_or_before_cutoff() -> None:
 def test_window_change_uses_closest_sample_before_cutoff_when_out_of_order() -> None:
     history = RollingMetricHistory()
     now = datetime(2026, 4, 24, 15, 0, tzinfo=timezone.utc)
-    history.record("tvl:apxUSD", 99.0, now - timedelta(minutes=59))
-    history.record("tvl:apxUSD", 100.0, now - timedelta(minutes=65))
-    history.record("tvl:apxUSD", 90.0, now - timedelta(minutes=61))
+    history.record("metric:sample", 99.0, now - timedelta(minutes=59))
+    history.record("metric:sample", 100.0, now - timedelta(minutes=65))
+    history.record("metric:sample", 90.0, now - timedelta(minutes=61))
 
     change = history.window_change(
-        "tvl:apxUSD", current=81.0, now=now, window_minutes=60
+        "metric:sample", current=81.0, now=now, window_minutes=60
     )
 
     assert change is not None
@@ -44,11 +44,11 @@ def test_window_change_uses_closest_sample_before_cutoff_when_out_of_order() -> 
 def test_record_prunes_stale_out_of_order_samples_using_latest_timestamp() -> None:
     history = RollingMetricHistory(retention_minutes=60)
     now = datetime(2026, 4, 24, 15, 0, tzinfo=timezone.utc)
-    history.record("tvl:apxUSD", 110.0, now)
-    history.record("tvl:apxUSD", 50.0, now - timedelta(minutes=120))
+    history.record("metric:sample", 110.0, now)
+    history.record("metric:sample", 50.0, now - timedelta(minutes=120))
 
     change = history.window_change(
-        "tvl:apxUSD", current=75.0, now=now, window_minutes=90
+        "metric:sample", current=75.0, now=now, window_minutes=90
     )
 
     assert change is None
@@ -76,9 +76,9 @@ def test_latest_change_returns_none_for_zero_baseline() -> None:
 def test_window_change_returns_none_for_zero_baseline() -> None:
     history = RollingMetricHistory()
     now = datetime(2026, 4, 24, 15, 0, tzinfo=timezone.utc)
-    history.record("tvl:apxUSD", 0.0, now - timedelta(minutes=65))
+    history.record("metric:sample", 0.0, now - timedelta(minutes=65))
 
     assert (
-        history.window_change("tvl:apxUSD", current=85.0, now=now, window_minutes=60)
+        history.window_change("metric:sample", current=85.0, now=now, window_minutes=60)
         is None
     )

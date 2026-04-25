@@ -15,6 +15,13 @@ class NamedAddress:
 
 
 @dataclass(frozen=True)
+class SupplyToken:
+    name: str
+    address: str
+    absolute_change_threshold: float
+
+
+@dataclass(frozen=True)
 class FinnhubConfig:
     symbol: str
     threshold_price: float
@@ -37,13 +44,7 @@ class PendleConfig:
 
 @dataclass(frozen=True)
 class SupplyConfig:
-    tokens: tuple[NamedAddress, ...]
-    threshold_pct: float
-
-
-@dataclass(frozen=True)
-class TvlConfig:
-    tokens: tuple[NamedAddress, ...]
+    tokens: tuple[SupplyToken, ...]
     threshold_pct: float
     window_minutes: int
 
@@ -52,6 +53,7 @@ class TvlConfig:
 class ApyUsdConfig:
     token: NamedAddress
     total_assets_change_pct: float
+    total_assets_absolute_change_threshold: float
     price_apxusd_change_pct: float
     window_minutes: int
 
@@ -67,7 +69,6 @@ class AppConfig:
     peg: PegConfig
     pendle: PendleConfig
     supply: SupplyConfig
-    tvl: TvlConfig
     apyusd: ApyUsdConfig
     alert: AlertConfig
 
@@ -91,23 +92,30 @@ def load_app_config(path: str | Path = "config.yaml") -> AppConfig:
             window_minutes=int(data["pendle"]["window_minutes"]),
         ),
         supply=SupplyConfig(
-            tokens=tuple(NamedAddress(**item) for item in data["supply"]["tokens"]),
+            tokens=tuple(_load_supply_token(item) for item in data["supply"]["tokens"]),
             threshold_pct=float(data["supply"]["threshold_pct"]),
-        ),
-        tvl=TvlConfig(
-            tokens=tuple(NamedAddress(**item) for item in data["tvl"]["tokens"]),
-            threshold_pct=float(data["tvl"]["threshold_pct"]),
-            window_minutes=int(data["tvl"]["window_minutes"]),
+            window_minutes=int(data["supply"]["window_minutes"]),
         ),
         apyusd=ApyUsdConfig(
             token=NamedAddress(**data["apyusd"]["token"]),
             total_assets_change_pct=float(data["apyusd"]["total_assets_change_pct"]),
+            total_assets_absolute_change_threshold=float(
+                data["apyusd"]["total_assets_absolute_change_threshold"]
+            ),
             price_apxusd_change_pct=float(data["apyusd"]["price_apxusd_change_pct"]),
             window_minutes=int(data["apyusd"]["window_minutes"]),
         ),
         alert=AlertConfig(
             cooldown_minutes=int(data["alert"]["cooldown_minutes"]),
         ),
+    )
+
+
+def _load_supply_token(item: dict) -> SupplyToken:
+    return SupplyToken(
+        name=item["name"],
+        address=item["address"],
+        absolute_change_threshold=float(item["absolute_change_threshold"]),
     )
 
 

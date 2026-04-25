@@ -33,9 +33,6 @@ def test_status_labels_apyusd_supply_as_share_total_supply(monkeypatch) -> None:
     async def fake_fetch_total_supply_async(web3, *, address: str) -> float:
         return 53_939_627.60 if address.endswith("A329Fe8a6A") else 194_987_002.0
 
-    async def fake_fetch_tvl_for_token(session, web3, token) -> float:
-        return 194_987_002.0
-
     async def fake_fetch_total_assets_async(web3, *, address: str) -> float:
         return 72_328_062.10
 
@@ -46,7 +43,6 @@ def test_status_labels_apyusd_supply_as_share_total_supply(monkeypatch) -> None:
     monkeypatch.setattr("status.fetch_pendle_market", fake_fetch_pendle_market)
     monkeypatch.setattr("status.fetch_peg_price", fake_fetch_peg_price)
     monkeypatch.setattr("status.fetch_total_supply_async", fake_fetch_total_supply_async)
-    monkeypatch.setattr("status.fetch_tvl_for_token", fake_fetch_tvl_for_token)
     monkeypatch.setattr("status.fetch_total_assets_async", fake_fetch_total_assets_async)
     monkeypatch.setattr("status.fetch_price_apxusd_async", fake_fetch_price_apxusd_async)
 
@@ -62,6 +58,9 @@ def test_status_labels_apyusd_supply_as_share_total_supply(monkeypatch) -> None:
     )
 
     assert parse_mode == "HTML"
-    assert "apyUSD 供应 (share totalSupply)" in message
-    assert "apyUSD totalAssets" in message
-    assert "apyUSD priceAPXUSD" in message
+    assert "<b>apyUSD</b>" in message
+    assert "供应 (share totalSupply)" in message
+    assert "或 ±2.00M" in message
+    assert "TVL" not in message
+    assert "totalAssets" in message
+    assert "priceAPXUSD" in message

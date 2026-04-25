@@ -10,15 +10,15 @@
 | Supply | 链上 totalSupply 变动 | ETH RPC | 1 min |
 | STRC | STRC 股价跌破阈值 | Finnhub | 5 min |
 | Pendle | 流动性 / APY / PT 价格变动 | Pendle API | 5 min |
-| TVL | apxUSD 链上 totalSupply 变动 | ETH RPC | 5 min |
-| apyUSD | totalAssets / priceAPXUSD 变动 | ETH RPC | 5 min |
+| apyUSD | totalAssets / priceAPXUSD 变动 | ETH RPC | 1 min |
 
 说明：
 
-- `apxUSD TVL` 使用 apxUSD ERC20 `totalSupply()`，代表链上已发行规模。
-- `apyUSD totalAssets` 使用 apyUSD ERC-4626 `totalAssets()`，代表 vault 底层 apxUSD 资产规模，不再命名为 TVL。
-- `apyUSD supply` 使用 apyUSD ERC20 `totalSupply()`，代表 share supply，不代表底层资产规模。
-- `apyUSD priceAPXUSD` 使用 apyUSD ERC-4626 `previewRedeem(1e18)`，代表 1 apyUSD 当前预览可赎回的 apxUSD 数量。
+- `Pendle` 每 5 分钟检查一次，比较 30 分钟窗口内 liquidity / PT APY / PT price 的变化。
+- `apxUSD supply` 每 1 分钟读取 apxUSD ERC20 `totalSupply()`，同时比较 1 分钟相邻采样和 30 分钟窗口；任一窗口变化超过 `10%` 或绝对变化超过 `5M` 时告警。
+- `apyUSD supply` 每 1 分钟读取 apyUSD ERC20 `totalSupply()`，代表 share supply，不代表底层资产规模；同时比较 1 分钟相邻采样和 30 分钟窗口，任一窗口变化超过 `10%` 或绝对变化超过 `2M` share 时告警。
+- `apyUSD totalAssets` 每 1 分钟读取 apyUSD ERC-4626 `totalAssets()`，代表 vault 底层 apxUSD 资产规模；同时比较 1 分钟相邻采样和 30 分钟窗口，任一窗口变化超过 `10%` 或绝对变化超过 `5M apxUSD` 时告警。
+- `apyUSD priceAPXUSD` 每 1 分钟读取 apyUSD ERC-4626 `previewRedeem(1e18)`，代表 1 apyUSD 当前预览可赎回的 apxUSD 数量；同时比较 1 分钟相邻采样和 30 分钟窗口，任一窗口变化超过 `5%` 时告警。
 
 ## 部署（Docker）
 
@@ -65,7 +65,6 @@ alert/
 monitors/
   peg.py          锚定价格
   supply.py       链上供应量
-  tvl.py          apxUSD 链上 totalSupply TVL 口径
   apyusd.py       apyUSD ERC-4626 totalAssets / priceAPXUSD
   pendle.py       Pendle 市场数据
   strc_price.py   STRC 股价
