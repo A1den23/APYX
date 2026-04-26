@@ -52,7 +52,8 @@ docker compose logs -f
 
 | 命令 | 说明 |
 |------|------|
-| `/status` | 查看所有监控指标当前值及阈值 |
+| `/status` | 查看所有监控指标当前值 |
+| `/thresholds` | 查看所有预警阈值 |
 | `/health` | 服务自检：运行时间、成功率、数据新鲜度、错误分布 |
 | `/strategy` | 查看当前监控策略说明 |
 | `/help` | 查看 Telegram 命令帮助 |
@@ -73,6 +74,7 @@ config.yaml       监控参数配置
 health.py         运行状态追踪
 history.py        滚动指标历史记录
 status.py         /status 和 /health 消息生成
+thresholds.py     /thresholds 阈值说明生成
 alert/
   engine.py       告警引擎（触发 / 冷却 / 恢复）
   telegram.py     Telegram 发送 + 命令监听

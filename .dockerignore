@@ -6,7 +6,7 @@ __pycache__
 .env
 .codex
 tests
-docs
+docs/superpowers
 logs
 requirements-dev.txt
 pytest.ini

@@ -18,6 +18,7 @@ from help import build_help_message
 from history import RollingMetricHistory
 from status import build_status_message, build_health_message
 from strategy import build_strategy_message
+from thresholds import build_thresholds_message
 from monitors.apyusd import (
     evaluate_supply_asset_backing,
     evaluate_price_apxusd,
@@ -494,6 +495,9 @@ async def run_service(*, once: bool) -> None:
                     engine=engine,
                 ),
                 strategy_fn=lambda: asyncio.to_thread(build_strategy_message),
+                thresholds_fn=lambda: asyncio.to_thread(
+                    build_thresholds_message, settings
+                ),
                 help_fn=lambda: asyncio.to_thread(build_help_message),
                 error_fn=lambda error: tracker.record_failure(
                     "telegram_commands", error

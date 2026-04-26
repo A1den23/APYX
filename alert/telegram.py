@@ -23,6 +23,7 @@ class TelegramSender:
         self._status_fn: Callable[[], Coroutine] | None = None
         self._health_fn: Callable[[], Coroutine] | None = None
         self._strategy_fn: Callable[[], Coroutine] | None = None
+        self._thresholds_fn: Callable[[], Coroutine] | None = None
         self._help_fn: Callable[[], Coroutine] | None = None
         self._error_fn: Callable[[str], None] | None = None
 
@@ -37,12 +38,14 @@ class TelegramSender:
         status_fn: Callable[[], Coroutine],
         health_fn: Callable[[], Coroutine],
         strategy_fn: Callable[[], Coroutine],
+        thresholds_fn: Callable[[], Coroutine],
         help_fn: Callable[[], Coroutine],
         error_fn: Callable[[str], None] | None = None,
     ) -> None:
         self._status_fn = status_fn
         self._health_fn = health_fn
         self._strategy_fn = strategy_fn
+        self._thresholds_fn = thresholds_fn
         self._help_fn = help_fn
         self._error_fn = error_fn
         self._poll_task = asyncio.create_task(self._poll_loop())
@@ -85,6 +88,9 @@ class TelegramSender:
             await self._reply_text(update, msg)
         elif command == "/strategy" and self._strategy_fn:
             msg = await self._strategy_fn()
+            await self._reply_text(update, msg)
+        elif command == "/thresholds" and self._thresholds_fn:
+            msg = await self._thresholds_fn()
             await self._reply_text(update, msg)
         elif command == "/help" and self._help_fn:
             msg = await self._help_fn()

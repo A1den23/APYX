@@ -55,8 +55,7 @@ async def build_status_message(
         strc_price = await fetch_strc_price(session, api_key=env.finnhub_api_key, symbol=settings.finnhub.symbol)
         lines.append("  <b>STRC</b>")
         lines.append(
-            f"    {_rpad('price', _LABEL_COL)} <b>${strc_price:.2f}</b>  "
-            f"预警 &lt;${settings.finnhub.threshold_price:.2f}"
+            f"    {_rpad('price', _LABEL_COL)} <b>${strc_price:.2f}</b>"
         )
     except Exception as e:
         lines.append(f"  STRC  ERROR - {_html_error(e)}")
@@ -71,16 +70,13 @@ async def build_status_message(
             snap = await fetch_pendle_market(session, name=market.name, address=market.address)
             lines.append(f"  <b>{market.name}</b>")
             lines.append(
-                f"    {_rpad('liquidity', _LABEL_COL)} <b>${snap.liquidity/1e6:.2f}M</b>  "
-                f"预警 30m ↓{settings.pendle.liquidity_drop_pct:.0%}"
+                f"    {_rpad('liquidity', _LABEL_COL)} <b>${snap.liquidity/1e6:.2f}M</b>"
             )
             lines.append(
-                f"    {_rpad('implied APY', _LABEL_COL)} <b>{snap.implied_apy:.2%}</b>  "
-                f"预警 30m ±{settings.pendle.apy_change_pct:.0%}"
+                f"    {_rpad('implied APY', _LABEL_COL)} <b>{snap.implied_apy:.2%}</b>"
             )
             lines.append(
-                f"    {_rpad('PT price', _LABEL_COL)} <b>${snap.pt_price:.4f}</b>  "
-                f"预警 30m ±{settings.pendle.pt_price_change_pct:.0%}"
+                f"    {_rpad('PT price', _LABEL_COL)} <b>${snap.pt_price:.4f}</b>"
             )
         except Exception as e:
             lines.append(f"  <b>{market.name}</b>  ERROR - {_html_error(e)}")
@@ -106,9 +102,7 @@ async def build_status_message(
         ).strftime("%m/%d %H:%M")
         lines.append("    <b>Accountable PoR</b>")
         lines.append(
-            f"    {_rpad('PoR ratio', _LABEL_COL)} <b>{solvency.collateralization:.2%}</b>  "
-            f"预警 &lt;{settings.solvency.warning_collateralization:.1%} / "
-            f"紧急 &lt;{settings.solvency.critical_collateralization:.0%}"
+            f"    {_rpad('PoR ratio', _LABEL_COL)} <b>{solvency.collateralization:.2%}</b>"
         )
         lines.append(
             f"    {_rpad('PoR reserves', _LABEL_COL)} <b>${solvency.total_reserves/1e6:.2f}M</b>"
@@ -117,8 +111,7 @@ async def build_status_message(
             f"    {_rpad('PoR supply', _LABEL_COL)} <b>${solvency.total_supply/1e6:.2f}M</b>"
         )
         lines.append(
-            f"    {_rpad('PoR updated', _LABEL_COL)} <b>{update_str}</b>  "
-            f"预警 &gt;{settings.solvency.max_data_age_minutes}min"
+            f"    {_rpad('PoR updated', _LABEL_COL)} <b>{update_str}</b>"
         )
     except Exception as e:
         lines.append(f"    Accountable PoR  ERROR - {_html_error(e)}")
@@ -127,8 +120,7 @@ async def build_status_message(
     try:
         peg_price = await fetch_peg_price(session, address=settings.peg.token.address)
         lines.append(
-            f"    {_rpad('price', _LABEL_COL)} <b>${peg_price:.4f}</b>  "
-            f"预警 偏离&gt;{settings.peg.threshold_pct:.2%}"
+            f"    {_rpad('price', _LABEL_COL)} <b>${peg_price:.4f}</b>"
         )
     except Exception as e:
         lines.append(f"    价格  ERROR - {_html_error(e)}")
@@ -140,9 +132,7 @@ async def build_status_message(
         try:
             supply = await fetch_total_supply_async(web3, address=token.address)
             lines.append(
-                f"    {_rpad('totalSupply', _LABEL_COL)} <b>{supply/1e6:.2f}M</b>  "
-                f"预警 1m/30m ±{settings.supply.threshold_pct:.0%} "
-                f"或 ±{token.absolute_change_threshold/1e6:.2f}M"
+                f"    {_rpad('totalSupply', _LABEL_COL)} <b>{supply/1e6:.2f}M</b>"
             )
         except Exception as e:
             lines.append(f"    供应  ERROR - {_html_error(e)}")
@@ -156,9 +146,7 @@ async def build_status_message(
         try:
             supply = await fetch_total_supply_async(web3, address=token.address)
             lines.append(
-                f"    {_rpad('totalSupply', _LABEL_COL)} <b>{supply/1e6:.2f}M shares</b>  "
-                f"预警 1m/30m ±{settings.supply.threshold_pct:.0%} "
-                f"或 ±{token.absolute_change_threshold/1e6:.2f}M"
+                f"    {_rpad('totalSupply', _LABEL_COL)} <b>{supply/1e6:.2f}M shares</b>"
             )
         except Exception as e:
             lines.append(f"    供应  ERROR - {_html_error(e)}")
@@ -169,9 +157,7 @@ async def build_status_message(
             web3, address=settings.apyusd.token.address
         )
         lines.append(
-            f"    {_rpad('totalAssets', _LABEL_COL)} <b>{total_assets/1e6:.2f}M apxUSD</b>  "
-            f"预警 1m/30m ±{settings.apyusd.total_assets_change_pct:.0%} "
-            f"或 ±{settings.apyusd.total_assets_absolute_change_threshold/1e6:.2f}M"
+            f"    {_rpad('totalAssets', _LABEL_COL)} <b>{total_assets/1e6:.2f}M apxUSD</b>"
         )
     except Exception as e:
         lines.append(f"    totalAssets  ERROR - {_html_error(e)}")
@@ -182,24 +168,25 @@ async def build_status_message(
             web3, address=settings.apyusd.token.address
         )
         lines.append(
-            f"    {_rpad('priceAPXUSD', _LABEL_COL)} <b>{price_apxusd:.4f} apxUSD</b>  "
-            f"预警 1m/30m ±{settings.apyusd.price_apxusd_change_pct:.0%}"
+            f"    {_rpad('priceAPXUSD', _LABEL_COL)} <b>{price_apxusd:.4f} apxUSD</b>"
         )
     except Exception as e:
         lines.append(f"    priceAPXUSD  ERROR - {_html_error(e)}")
     keys.append("apyusd_price_apxusd")
 
+    mint_backing_key = f"mint_backing:{settings.apyusd.token.name}"
     lines.append(
-        f"    {_rpad('mint backing', _LABEL_COL)} 预警 share增量&gt;"
-        f"{settings.security.apyusd_min_supply_increase/1e6:.2f}M 且背书&lt;"
-        f"{settings.security.apyusd_min_backing_ratio:.0%}"
+        f"    {_rpad('mint backing', _LABEL_COL)} "
+        f"{'active alert' if mint_backing_key in active else 'normal'}"
     )
-    keys.append(f"mint_backing:{settings.apyusd.token.name}")
+    keys.append(mint_backing_key)
 
+    security_events_key = "security_events"
     lines.append(
-        f"    {_rpad('security events', _LABEL_COL)} 预警 大额mint/burn、权限、升级、暂停"
+        f"    {_rpad('security events', _LABEL_COL)} "
+        f"{'active alert' if security_events_key in active else 'normal'}"
     )
-    keys.append("security_events")
+    keys.append(security_events_key)
 
     section_data.append(("🔐 协议安全", lines, keys))
 

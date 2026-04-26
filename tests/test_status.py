@@ -75,7 +75,9 @@ def test_status_uses_compact_metric_labels(monkeypatch) -> None:
     assert "totalSupply" in message
     assert "53.94M shares" in message
     assert "供应 (share totalSupply)" not in message
-    assert "或 ±2.00M" in message
+    assert "预警 1m/30m" not in message
+    assert "或 ±2.00M" not in message
+    assert "预警 &lt;" not in message
     assert "TVL" not in message
     assert "totalAssets" in message
     assert "priceAPXUSD" in message

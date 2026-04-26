@@ -7,4 +7,5 @@ def test_build_help_message_lists_supported_commands() -> None:
     assert "/status" in message
     assert "/health" in message
     assert "/strategy" in message
+    assert "/thresholds" in message
     assert "/help" in message
