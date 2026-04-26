@@ -148,7 +148,7 @@ async def run_security_event_checks(
     contract_names = _security_contract_names(settings)
     privileged_logs = await fetch_logs_async(
         web3,
-        addresses=list(contract_names.keys()),
+        addresses=[Web3.to_checksum_address(a) for a in contract_names],
         topics=[list(PRIVILEGED_EVENT_TOPICS.values())],
         from_block=from_block,
         to_block=to_block,
