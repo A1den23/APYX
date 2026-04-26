@@ -1,5 +1,5 @@
 from config import load_app_config
-from thresholds import build_thresholds_message
+from commands.thresholds import build_thresholds_message
 
 
 def test_build_thresholds_message_lists_status_thresholds() -> None:

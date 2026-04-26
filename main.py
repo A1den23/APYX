@@ -13,12 +13,12 @@ from alert.engine import AlertEngine, AlertEvent
 from alert.telegram import TelegramSender
 from config import AppConfig, EnvConfig, load_app_config, load_env_config
 from errors import safe_error_message
-from health import HealthTracker
-from help import build_help_message
+from commands.health import HealthTracker
+from commands.help import build_help_message
 from history import RollingMetricHistory
-from status import build_status_message, build_health_message
-from strategy import build_strategy_message
-from thresholds import build_thresholds_message
+from commands.status import build_status_message, build_health_message
+from commands.strategy import build_strategy_message
+from commands.thresholds import build_thresholds_message
 from monitors.apyusd import (
     evaluate_supply_asset_backing,
     evaluate_price_apxusd,

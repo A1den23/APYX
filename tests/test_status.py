@@ -5,7 +5,7 @@ from alert.engine import AlertEngine
 from config import EnvConfig, load_app_config
 from history import RollingMetricHistory
 from monitors.solvency import AccountableSolvencySnapshot
-from status import build_status_message
+from commands.status import build_status_message
 
 
 def test_status_uses_compact_metric_labels(monkeypatch) -> None:
@@ -51,13 +51,13 @@ def test_status_uses_compact_metric_labels(monkeypatch) -> None:
             interval="live",
         )
 
-    monkeypatch.setattr("status.fetch_strc_price", fake_fetch_strc_price)
-    monkeypatch.setattr("status.fetch_pendle_market", fake_fetch_pendle_market)
-    monkeypatch.setattr("status.fetch_peg_price", fake_fetch_peg_price)
-    monkeypatch.setattr("status.fetch_total_supply_async", fake_fetch_total_supply_async)
-    monkeypatch.setattr("status.fetch_total_assets_async", fake_fetch_total_assets_async)
-    monkeypatch.setattr("status.fetch_price_apxusd_async", fake_fetch_price_apxusd_async)
-    monkeypatch.setattr("status.fetch_solvency_snapshot", fake_fetch_solvency_snapshot)
+    monkeypatch.setattr("commands.status.fetch_strc_price", fake_fetch_strc_price)
+    monkeypatch.setattr("commands.status.fetch_pendle_market", fake_fetch_pendle_market)
+    monkeypatch.setattr("commands.status.fetch_peg_price", fake_fetch_peg_price)
+    monkeypatch.setattr("commands.status.fetch_total_supply_async", fake_fetch_total_supply_async)
+    monkeypatch.setattr("commands.status.fetch_total_assets_async", fake_fetch_total_assets_async)
+    monkeypatch.setattr("commands.status.fetch_price_apxusd_async", fake_fetch_price_apxusd_async)
+    monkeypatch.setattr("commands.status.fetch_solvency_snapshot", fake_fetch_solvency_snapshot)
 
     message, parse_mode = asyncio.run(
         build_status_message(
@@ -133,13 +133,13 @@ def test_status_marks_protocol_security_red_when_security_events_active(monkeypa
             interval="live",
         )
 
-    monkeypatch.setattr("status.fetch_strc_price", fake_fetch_strc_price)
-    monkeypatch.setattr("status.fetch_pendle_market", fake_fetch_pendle_market)
-    monkeypatch.setattr("status.fetch_peg_price", fake_fetch_peg_price)
-    monkeypatch.setattr("status.fetch_total_supply_async", fake_fetch_total_supply_async)
-    monkeypatch.setattr("status.fetch_total_assets_async", fake_fetch_total_assets_async)
-    monkeypatch.setattr("status.fetch_price_apxusd_async", fake_fetch_price_apxusd_async)
-    monkeypatch.setattr("status.fetch_solvency_snapshot", fake_fetch_solvency_snapshot)
+    monkeypatch.setattr("commands.status.fetch_strc_price", fake_fetch_strc_price)
+    monkeypatch.setattr("commands.status.fetch_pendle_market", fake_fetch_pendle_market)
+    monkeypatch.setattr("commands.status.fetch_peg_price", fake_fetch_peg_price)
+    monkeypatch.setattr("commands.status.fetch_total_supply_async", fake_fetch_total_supply_async)
+    monkeypatch.setattr("commands.status.fetch_total_assets_async", fake_fetch_total_assets_async)
+    monkeypatch.setattr("commands.status.fetch_price_apxusd_async", fake_fetch_price_apxusd_async)
+    monkeypatch.setattr("commands.status.fetch_solvency_snapshot", fake_fetch_solvency_snapshot)
     engine = AlertEngine(cooldown=timedelta(minutes=5))
     engine.evaluate(
         metric_key="security_events",

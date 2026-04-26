@@ -1,4 +1,4 @@
-from strategy import build_strategy_message
+from commands.strategy import build_strategy_message
 
 
 def test_build_strategy_message_reads_strategy_document() -> None:

@@ -1,6 +1,6 @@
 import asyncio
 
-from health import HealthTracker
+from commands.health import HealthTracker
 from main import send_lifecycle_notification
 
 

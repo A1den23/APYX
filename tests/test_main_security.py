@@ -1,5 +1,5 @@
 from config import load_app_config
-from health import HealthTracker
+from commands.health import HealthTracker
 from main import _register_monitors, _security_contract_names
 
 

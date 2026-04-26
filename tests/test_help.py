@@ -1,4 +1,4 @@
-from help import build_help_message
+from commands.help import build_help_message
 
 
 def test_build_help_message_lists_supported_commands() -> None:

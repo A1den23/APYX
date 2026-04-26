@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 
 from alert.engine import AlertEngine, AlertEvent
-from health import HealthTracker
+from commands.health import HealthTracker
 from main import send_events
 
 

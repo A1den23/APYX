@@ -9,7 +9,7 @@ from web3 import Web3
 from alert.engine import AlertEngine
 from config import AppConfig, EnvConfig
 from errors import safe_error_message
-from health import HealthTracker
+from .health import HealthTracker
 from history import RollingMetricHistory
 from monitors.peg import fetch_peg_price
 from monitors.pendle import fetch_pendle_market
