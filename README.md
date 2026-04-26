@@ -44,7 +44,7 @@ docker compose logs -f
 | 变量 | 说明 | 示例 |
 |------|------|------|
 | `TG_BOT_TOKEN` | Telegram Bot API Token | `123456:ABC-DEF` |
-| `TG_CHAT_ID` | 接收消息的 Chat ID | `2097712941` |
+| `TG_CHAT_ID` | 接收消息的 Chat ID | `<your-chat-id>` |
 | `ETH_RPC_URL` | Ethereum JSON-RPC 端点（需支持 eth_call） | Alchemy / Infura |
 | `FINNHUB_API_KEY` | Finnhub API Key（免费注册） | `d7lk...` |
 
