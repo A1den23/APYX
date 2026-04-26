@@ -16,6 +16,7 @@ from health import HealthTracker
 from history import RollingMetricHistory
 from status import build_status_message, build_health_message
 from monitors.apyusd import (
+    evaluate_supply_asset_backing,
     evaluate_price_apxusd,
     evaluate_total_assets,
     fetch_price_apxusd_async,
@@ -23,6 +24,16 @@ from monitors.apyusd import (
 )
 from monitors.peg import evaluate_peg_price, fetch_peg_price
 from monitors.pendle import evaluate_pendle_market, fetch_pendle_market
+from monitors.security_events import (
+    PRIVILEGED_EVENT_TOPICS,
+    TRANSFER_TOPIC,
+    LogScanState,
+    evaluate_privileged_logs,
+    evaluate_token_movements,
+    fetch_decimals_async,
+    fetch_logs_async,
+    parse_token_movements,
+)
 from monitors.strc_price import evaluate_strc_price, fetch_strc_price
 from monitors.supply import evaluate_supply, fetch_total_supply_async
 
@@ -58,9 +69,74 @@ def _register_monitors(tracker: HealthTracker, settings: AppConfig) -> None:
     tracker.register("strc", 300)
     tracker.register(f"total_assets:{settings.apyusd.token.name}", 60)
     tracker.register("apyusd_price_apxusd", 60)
+    tracker.register(f"mint_backing:{settings.apyusd.token.name}", 60)
+    tracker.register("security_events", 60)
     tracker.register("telegram_commands", 0)
     for market in settings.pendle.markets:
-        tracker.register(f"pendle:{market.name}", 300)
+        tracker.register(f"pendle:{market.name}", 60)
+
+
+def _security_contract_names(settings: AppConfig) -> dict[str, str]:
+    names = {token.address.lower(): token.name for token in settings.supply.tokens}
+    names[settings.apyusd.token.address.lower()] = settings.apyusd.token.name
+    for market in settings.pendle.markets:
+        names[market.address.lower()] = f"Pendle {market.name}"
+    return names
+
+
+async def run_security_event_checks(
+    *,
+    web3: Web3,
+    settings: AppConfig,
+    state: LogScanState,
+    token_decimals_by_address: dict[str, int],
+    now: datetime,
+) -> list[AlertEvent]:
+    latest_block = await asyncio.to_thread(lambda: int(web3.eth.block_number))
+    block_range = state.next_range(latest_block=latest_block)
+    if block_range is None:
+        return []
+    from_block, to_block = block_range
+    if not token_decimals_by_address:
+        token_decimals_by_address.update(
+            await fetch_decimals_async(web3, tokens=settings.supply.tokens)
+        )
+
+    movement_logs = await fetch_logs_async(
+        web3,
+        addresses=[token.address for token in settings.supply.tokens],
+        topics=[TRANSFER_TOPIC],
+        from_block=from_block,
+        to_block=to_block,
+    )
+    movements = parse_token_movements(
+        movement_logs,
+        tokens=settings.supply.tokens,
+        decimals_by_address=token_decimals_by_address,
+    )
+    events = evaluate_token_movements(
+        movements,
+        tokens=settings.supply.tokens,
+        now=now,
+    )
+
+    contract_names = _security_contract_names(settings)
+    privileged_logs = await fetch_logs_async(
+        web3,
+        addresses=list(contract_names.keys()),
+        topics=[list(PRIVILEGED_EVENT_TOPICS.values())],
+        from_block=from_block,
+        to_block=to_block,
+    )
+    events.extend(
+        evaluate_privileged_logs(
+            privileged_logs,
+            contract_names=contract_names,
+            now=now,
+        )
+    )
+    state.mark_scanned(to_block)
+    return events
 
 
 async def run_one_minute_checks(
@@ -72,9 +148,15 @@ async def run_one_minute_checks(
     engine: AlertEngine,
     sender: TelegramSender,
     tracker: HealthTracker,
+    security_state: LogScanState,
+    token_decimals_by_address: dict[str, int],
 ) -> None:
     now = datetime.now(timezone.utc)
     events: list[AlertEvent] = []
+    previous_apyusd_supply = None
+    current_apyusd_supply = None
+    previous_apyusd_total_assets = None
+    current_apyusd_total_assets = None
 
     try:
         peg_price = await fetch_peg_price(session, address=settings.peg.token.address)
@@ -94,7 +176,11 @@ async def run_one_minute_checks(
     for token in settings.supply.tokens:
         key = f"supply:{token.name}"
         try:
+            previous_sample = history.latest_sample(key)
             supply = await fetch_total_supply_async(web3, address=token.address)
+            if token.name == settings.apyusd.token.name:
+                previous_apyusd_supply = previous_sample.value if previous_sample else None
+                current_apyusd_supply = supply
             supply_event = evaluate_supply(
                 token_name=token.name,
                 supply=supply,
@@ -113,7 +199,10 @@ async def run_one_minute_checks(
 
     key = f"total_assets:{settings.apyusd.token.name}"
     try:
+        previous_sample = history.latest_sample(key)
         total_assets = await fetch_total_assets_async(web3, address=settings.apyusd.token.address)
+        previous_apyusd_total_assets = previous_sample.value if previous_sample else None
+        current_apyusd_total_assets = total_assets
         total_assets_event = evaluate_total_assets(
             token_name=settings.apyusd.token.name,
             total_assets=total_assets,
@@ -144,9 +233,67 @@ async def run_one_minute_checks(
         )
         if price_event is not None:
             events.append(price_event)
+        if (
+            previous_apyusd_supply is not None
+            and current_apyusd_supply is not None
+            and previous_apyusd_total_assets is not None
+            and current_apyusd_total_assets is not None
+        ):
+            backing_event = evaluate_supply_asset_backing(
+                token_name=settings.apyusd.token.name,
+                previous_supply=previous_apyusd_supply,
+                current_supply=current_apyusd_supply,
+                previous_total_assets=previous_apyusd_total_assets,
+                current_total_assets=current_apyusd_total_assets,
+                price_apxusd=price_apxusd,
+                min_supply_increase=settings.security.apyusd_min_supply_increase,
+                min_backing_ratio=settings.security.apyusd_min_backing_ratio,
+                engine=engine,
+                now=now,
+            )
+            if backing_event is not None:
+                events.append(backing_event)
+        tracker.record_success(f"mint_backing:{settings.apyusd.token.name}")
         tracker.record_success("apyusd_price_apxusd")
     except Exception as e:
         tracker.record_failure("apyusd_price_apxusd", str(e))
+        tracker.record_failure(f"mint_backing:{settings.apyusd.token.name}", str(e))
+
+    try:
+        events.extend(
+            await run_security_event_checks(
+                web3=web3,
+                settings=settings,
+                state=security_state,
+                token_decimals_by_address=token_decimals_by_address,
+                now=now,
+            )
+        )
+        tracker.record_success("security_events")
+    except Exception as e:
+        tracker.record_failure("security_events", str(e))
+
+    for market in settings.pendle.markets:
+        key = f"pendle:{market.name}"
+        try:
+            snapshot = await fetch_pendle_market(
+                session, name=market.name, address=market.address
+            )
+            events.extend(
+                evaluate_pendle_market(
+                    snapshot=snapshot,
+                    liquidity_drop_pct=settings.pendle.liquidity_drop_pct,
+                    apy_change_pct=settings.pendle.apy_change_pct,
+                    pt_price_change_pct=settings.pendle.pt_price_change_pct,
+                    window_minutes=settings.pendle.window_minutes,
+                    history=history,
+                    engine=engine,
+                    now=now,
+                )
+            )
+            tracker.record_success(key)
+        except Exception as e:
+            tracker.record_failure(key, str(e))
 
     await send_events(sender, events, engine=engine, tracker=tracker)
 
@@ -181,28 +328,6 @@ async def run_five_minute_checks(
     except Exception as e:
         tracker.record_failure("strc", str(e))
 
-    for market in settings.pendle.markets:
-        key = f"pendle:{market.name}"
-        try:
-            snapshot = await fetch_pendle_market(
-                session, name=market.name, address=market.address
-            )
-            events.extend(
-                evaluate_pendle_market(
-                    snapshot=snapshot,
-                    liquidity_drop_pct=settings.pendle.liquidity_drop_pct,
-                    apy_change_pct=settings.pendle.apy_change_pct,
-                    pt_price_change_pct=settings.pendle.pt_price_change_pct,
-                    window_minutes=settings.pendle.window_minutes,
-                    history=history,
-                    engine=engine,
-                    now=now,
-                )
-            )
-            tracker.record_success(key)
-        except Exception as e:
-            tracker.record_failure(key, str(e))
-
     await send_events(sender, events, engine=engine, tracker=tracker)
 
 
@@ -212,6 +337,11 @@ async def run_service(*, once: bool) -> None:
     engine = AlertEngine(cooldown=timedelta(minutes=settings.alert.cooldown_minutes))
     history = RollingMetricHistory()
     tracker = HealthTracker()
+    security_state = LogScanState(
+        start_block_lookback=settings.security.start_block_lookback,
+        max_blocks_per_scan=settings.security.max_blocks_per_scan,
+    )
+    token_decimals_by_address: dict[str, int] = {}
     _register_monitors(tracker, settings)
     sender = TelegramSender(env.telegram_bot_token, env.telegram_chat_id)
     web3 = Web3(
@@ -231,6 +361,8 @@ async def run_service(*, once: bool) -> None:
                 engine=engine,
                 sender=sender,
                 tracker=tracker,
+                security_state=security_state,
+                token_decimals_by_address=token_decimals_by_address,
             )
             await run_five_minute_checks(
                 session=session,
@@ -257,6 +389,8 @@ async def run_service(*, once: bool) -> None:
                 "engine": engine,
                 "sender": sender,
                 "tracker": tracker,
+                "security_state": security_state,
+                "token_decimals_by_address": token_decimals_by_address,
             },
             max_instances=1,
             coalesce=True,

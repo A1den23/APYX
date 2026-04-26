@@ -59,6 +59,14 @@ class ApyUsdConfig:
 
 
 @dataclass(frozen=True)
+class SecurityConfig:
+    start_block_lookback: int
+    max_blocks_per_scan: int
+    apyusd_min_supply_increase: float
+    apyusd_min_backing_ratio: float
+
+
+@dataclass(frozen=True)
 class AlertConfig:
     cooldown_minutes: int
 
@@ -70,6 +78,7 @@ class AppConfig:
     pendle: PendleConfig
     supply: SupplyConfig
     apyusd: ApyUsdConfig
+    security: SecurityConfig
     alert: AlertConfig
 
 
@@ -105,6 +114,7 @@ def load_app_config(path: str | Path = "config.yaml") -> AppConfig:
             price_apxusd_change_pct=float(data["apyusd"]["price_apxusd_change_pct"]),
             window_minutes=int(data["apyusd"]["window_minutes"]),
         ),
+        security=_load_security_config(data.get("security", {})),
         alert=AlertConfig(
             cooldown_minutes=int(data["alert"]["cooldown_minutes"]),
         ),
@@ -116,6 +126,15 @@ def _load_supply_token(item: dict) -> SupplyToken:
         name=item["name"],
         address=item["address"],
         absolute_change_threshold=float(item["absolute_change_threshold"]),
+    )
+
+
+def _load_security_config(data: dict) -> SecurityConfig:
+    return SecurityConfig(
+        start_block_lookback=int(data.get("start_block_lookback", 25)),
+        max_blocks_per_scan=int(data.get("max_blocks_per_scan", 100)),
+        apyusd_min_supply_increase=float(data.get("apyusd_min_supply_increase", 100000)),
+        apyusd_min_backing_ratio=float(data.get("apyusd_min_backing_ratio", 0.99)),
     )
 
 

@@ -8,17 +8,20 @@
 |------|------|--------|------|
 | Peg | apxUSD 锚定价格偏差 | DefiLlama | 1 min |
 | Supply | 链上 totalSupply 变动 | ETH RPC | 1 min |
+| Security Events | 大额 mint/burn、权限/升级/暂停事件 | ETH RPC logs | 1 min |
 | STRC | STRC 股价跌破阈值 | Finnhub | 5 min |
-| Pendle | 流动性 / APY / PT 价格变动 | Pendle API | 5 min |
+| Pendle | 流动性 / APY / PT 价格变动 | Pendle API | 1 min |
 | apyUSD | totalAssets / priceAPXUSD 变动 | ETH RPC | 1 min |
 
 说明：
 
-- `Pendle` 每 5 分钟检查一次，比较 30 分钟窗口内 liquidity / PT APY / PT price 的变化。
+- `Pendle` 每 1 分钟检查一次，比较 30 分钟窗口内 liquidity / PT APY / PT price 的变化。
 - `apxUSD supply` 每 1 分钟读取 apxUSD ERC20 `totalSupply()`，同时比较 1 分钟相邻采样和 30 分钟窗口；任一窗口变化超过 `10%` 或绝对变化超过 `5M` 时告警。
 - `apyUSD supply` 每 1 分钟读取 apyUSD ERC20 `totalSupply()`，代表 share supply，不代表底层资产规模；同时比较 1 分钟相邻采样和 30 分钟窗口，任一窗口变化超过 `10%` 或绝对变化超过 `2M` share 时告警。
 - `apyUSD totalAssets` 每 1 分钟读取 apyUSD ERC-4626 `totalAssets()`，代表 vault 底层 apxUSD 资产规模；同时比较 1 分钟相邻采样和 30 分钟窗口，任一窗口变化超过 `10%` 或绝对变化超过 `5M apxUSD` 时告警。
 - `apyUSD priceAPXUSD` 每 1 分钟读取 apyUSD ERC-4626 `previewRedeem(1e18)`，代表 1 apyUSD 当前预览可赎回的 apxUSD 数量；同时比较 1 分钟相邻采样和 30 分钟窗口，任一窗口变化超过 `5%` 时告警。
+- `Security Events` 每 1 分钟扫描最近区块日志：当 apxUSD / apyUSD 单笔 mint 或 burn 超过各自供应量绝对阈值时告警；当被监控合约出现 `RoleGranted`、`RoleRevoked`、`OwnershipTransferred`、`AdminChanged`、`Upgraded`、`BeaconUpgraded`、`Paused`、`Unpaused` 时告警。
+- `apyUSD mint backing` 对比 share supply 增量和 `totalAssets` 增量；当新增 share 超过 `100K` 且新增资产低于按 `priceAPXUSD` 计算所需资产的 `99%` 时告警。
 
 ## 部署（Docker）
 
@@ -66,6 +69,7 @@ monitors/
   peg.py          锚定价格
   supply.py       链上供应量
   apyusd.py       apyUSD ERC-4626 totalAssets / priceAPXUSD
+  security_events.py 链上安全事件日志
   pendle.py       Pendle 市场数据
   strc_price.py   STRC 股价
 ```

@@ -40,6 +40,11 @@ apyusd:
   total_assets_absolute_change_threshold: 5000000
   price_apxusd_change_pct: 0.05
   window_minutes: 30
+security:
+  start_block_lookback: 25
+  max_blocks_per_scan: 100
+  apyusd_min_supply_increase: 100000
+  apyusd_min_backing_ratio: 0.99
 alert:
   cooldown_minutes: 5
 """.strip(),
@@ -66,6 +71,10 @@ def test_load_app_config_parses_thresholds_and_addresses(tmp_path: Path) -> None
     assert settings.apyusd.total_assets_change_pct == 0.10
     assert settings.apyusd.price_apxusd_change_pct == 0.05
     assert settings.apyusd.window_minutes == 30
+    assert settings.security.start_block_lookback == 25
+    assert settings.security.max_blocks_per_scan == 100
+    assert settings.security.apyusd_min_supply_increase == 100000
+    assert settings.security.apyusd_min_backing_ratio == 0.99
     assert settings.alert.cooldown_minutes == 5
 
 

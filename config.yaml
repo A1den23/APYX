@@ -39,5 +39,11 @@ apyusd:
   price_apxusd_change_pct: 0.05
   window_minutes: 30
 
+security:
+  start_block_lookback: 25
+  max_blocks_per_scan: 100
+  apyusd_min_supply_increase: 100000
+  apyusd_min_backing_ratio: 0.99
+
 alert:
   cooldown_minutes: 5

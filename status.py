@@ -112,7 +112,7 @@ async def build_status_message(
         try:
             supply = await fetch_total_supply_async(web3, address=token.address)
             lines.append(
-                f"    {_rpad('share totalSupply', _LABEL_COL)} <b>{supply/1e6:.2f}M</b>  "
+                f"    {_rpad('供应 (share totalSupply)', _LABEL_COL)} <b>{supply/1e6:.2f}M</b>  "
                 f"预警 1m/30m ±{settings.supply.threshold_pct:.0%} "
                 f"或 ±{token.absolute_change_threshold/1e6:.2f}M"
             )
@@ -144,6 +144,18 @@ async def build_status_message(
     except Exception as e:
         lines.append(f"    priceAPXUSD  ERROR - {_html_error(e)}")
     keys.append("apyusd_price_apxusd")
+
+    lines.append(
+        f"    {_rpad('mint backing', _LABEL_COL)} 预警 新增share&gt;"
+        f"{settings.security.apyusd_min_supply_increase/1e6:.2f}M 且背书&lt;"
+        f"{settings.security.apyusd_min_backing_ratio:.0%}"
+    )
+    keys.append(f"mint_backing:{settings.apyusd.token.name}")
+
+    lines.append(
+        f"    {_rpad('链上安全事件', _LABEL_COL)} 预警 大额mint/burn、权限、升级、暂停事件"
+    )
+    keys.append("security_events")
 
     section_data.append(("🔐 协议安全", lines, keys))
 

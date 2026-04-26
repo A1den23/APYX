@@ -4,6 +4,7 @@ from alert.engine import AlertEngine
 from history import RollingMetricHistory
 from monitors import apyusd as apyusd_module
 from monitors.apyusd import (
+    evaluate_supply_asset_backing,
     evaluate_price_apxusd,
     evaluate_total_assets,
     fetch_price_apxusd,
@@ -189,6 +190,51 @@ def test_evaluate_price_apxusd_does_not_alert_without_baseline() -> None:
         threshold_pct=0.05,
         window_minutes=30,
         history=history,
+        engine=engine,
+        now=now,
+    )
+
+    assert event is None
+
+
+def test_evaluate_supply_asset_backing_alerts_on_unbacked_share_mint() -> None:
+    engine = AlertEngine(cooldown=timedelta(minutes=5))
+    now = datetime(2026, 4, 24, 15, 30, tzinfo=timezone.utc)
+
+    event = evaluate_supply_asset_backing(
+        token_name="apyUSD",
+        previous_supply=50_000_000.0,
+        current_supply=60_000_000.0,
+        previous_total_assets=70_000_000.0,
+        current_total_assets=70_500_000.0,
+        price_apxusd=1.35,
+        min_supply_increase=100_000.0,
+        min_backing_ratio=0.99,
+        engine=engine,
+        now=now,
+    )
+
+    assert event is not None
+    assert event.title == "apyUSD Mint Backing Mismatch"
+    assert "Share supply increase: 10,000,000.00 apyUSD" in event.body
+    assert "Required asset increase: 13,500,000.00 apxUSD" in event.body
+    assert "Actual asset increase: 500,000.00 apxUSD" in event.body
+    assert "Backing ratio: 3.70%" in event.body
+
+
+def test_evaluate_supply_asset_backing_allows_collateralized_mint() -> None:
+    engine = AlertEngine(cooldown=timedelta(minutes=5))
+    now = datetime(2026, 4, 24, 15, 30, tzinfo=timezone.utc)
+
+    event = evaluate_supply_asset_backing(
+        token_name="apyUSD",
+        previous_supply=50_000_000.0,
+        current_supply=51_000_000.0,
+        previous_total_assets=70_000_000.0,
+        current_total_assets=71_350_000.0,
+        price_apxusd=1.35,
+        min_supply_increase=100_000.0,
+        min_backing_ratio=0.99,
         engine=engine,
         now=now,
     )

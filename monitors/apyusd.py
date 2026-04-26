@@ -134,3 +134,43 @@ def evaluate_price_apxusd(
         recovery_body=body,
         now=now,
     )
+
+
+def evaluate_supply_asset_backing(
+    *,
+    token_name: str,
+    previous_supply: float,
+    current_supply: float,
+    previous_total_assets: float,
+    current_total_assets: float,
+    price_apxusd: float,
+    min_supply_increase: float,
+    min_backing_ratio: float,
+    engine: AlertEngine,
+    now: datetime,
+) -> AlertEvent | None:
+    supply_delta = current_supply - previous_supply
+    if supply_delta <= min_supply_increase:
+        return None
+    asset_delta = current_total_assets - previous_total_assets
+    required_asset_delta = supply_delta * price_apxusd
+    if required_asset_delta <= 0:
+        return None
+    backing_ratio = asset_delta / required_asset_delta
+    breached = backing_ratio < min_backing_ratio
+    body = (
+        f"Share supply increase: {supply_delta:,.2f} {token_name}\n"
+        f"Required asset increase: {required_asset_delta:,.2f} apxUSD\n"
+        f"Actual asset increase: {asset_delta:,.2f} apxUSD\n"
+        f"Backing ratio: {backing_ratio:.2%}\n"
+        f"Minimum backing ratio: {min_backing_ratio:.2%}"
+    )
+    return engine.evaluate(
+        metric_key=f"mint_backing:{token_name}",
+        breached=breached,
+        alert_title=f"{token_name} Mint Backing Mismatch",
+        alert_body=body,
+        recovery_title=f"{token_name} Mint Backing Normal",
+        recovery_body=body,
+        now=now,
+    )
