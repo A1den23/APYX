@@ -1,6 +1,7 @@
 from config import load_app_config
 from commands.health import HealthTracker
-from main import _register_monitors, _security_contract_names
+from security_scan import _security_contract_names
+from service import _register_monitors
 
 
 def test_register_monitors_includes_security_checks_and_one_minute_pendle() -> None:

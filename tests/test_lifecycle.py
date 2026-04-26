@@ -1,7 +1,7 @@
 import asyncio
 
 from commands.health import HealthTracker
-from main import send_lifecycle_notification
+from service import send_lifecycle_notification
 
 
 class RecordingSender:
