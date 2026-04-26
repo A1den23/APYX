@@ -16,6 +16,7 @@ from monitors.pendle import fetch_pendle_market
 from monitors.strc_price import fetch_strc_price
 from monitors.supply import fetch_total_supply_async
 from monitors.apyusd import fetch_price_apxusd_async, fetch_total_assets_async
+from monitors.solvency import fetch_solvency_snapshot
 
 
 def _html_error(error: Exception) -> str:
@@ -83,6 +84,31 @@ async def build_status_message(
 
     # apxUSD metrics
     lines.append("  <b>apxUSD</b>")
+    try:
+        solvency = await fetch_solvency_snapshot(
+            session, url=settings.solvency.accountable_url
+        )
+        update_str = solvency.timestamp.astimezone(
+            timezone(timedelta(hours=8))
+        ).strftime("%m/%d %H:%M")
+        lines.append("    <b>Accountable PoR</b>")
+        lines.append(
+            f"    {_rpad('偿付率', _LABEL_COL)} <b>{solvency.collateralization:.2%}</b>  "
+            f"预警 &lt;{settings.solvency.warning_collateralization:.0%} / "
+            f"紧急 &lt;{settings.solvency.critical_collateralization:.0%}"
+        )
+        lines.append(
+            f"    {_rpad('储备/供应', _LABEL_COL)} "
+            f"<b>${solvency.total_reserves/1e6:.2f}M / ${solvency.total_supply/1e6:.2f}M</b>"
+        )
+        lines.append(
+            f"    {_rpad('更新时间', _LABEL_COL)} <b>{update_str}</b>  "
+            f"预警 &gt;{settings.solvency.max_data_age_minutes}min"
+        )
+    except Exception as e:
+        lines.append(f"    Accountable PoR  ERROR - {_html_error(e)}")
+    keys.append("solvency:accountable")
+
     try:
         peg_price = await fetch_peg_price(session, address=settings.peg.token.address)
         lines.append(f"    {_rpad('价格', _LABEL_COL)} <b>${peg_price:.4f}</b>  预警 偏离&gt;{settings.peg.threshold_pct:.2%}")

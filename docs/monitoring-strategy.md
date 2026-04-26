@@ -9,6 +9,8 @@ stablecoin-safety · ETHEREUM · apxUSD / apyUSD
 
 • apxUSD 是 APYX 体系内的美元锚定资产，核心风险是价格脱锚、供应量异常变化、权限/升级事件以及相关 DeFi 池流动性突然下滑。
 
+• APYX 官方 Accountable PoR 页面提供 apxUSD 实时偿付证明，当前监控直接读取其公开 dashboard API，覆盖 `collateralization`、总储备、总供应、净超额储备和数据更新时间。PoR 降低报表篡改风险，但不能单独排除源头资产、托管账户或外部数据源造假，因此必须和价格、链上供应、权限事件一起看。
+
 • apyUSD 是 ERC-4626 vault share，`totalSupply()` 代表 share supply，不等于底层资产规模；真正资产规模需要看 `totalAssets()`，share 价格需要看 `previewRedeem(1e18)` 得到的 `priceAPXUSD`。
 
 • apyUSD 的关键风险不是单看 share supply，而是 share 增发是否有足够底层 apxUSD 资产背书。异常 share mint 但 `totalAssets` 没同步增加，可能意味着无背书增发、权限滥用、合约逻辑错误或外部系统异常。
@@ -21,11 +23,33 @@ stablecoin-safety · ETHEREUM · apxUSD / apyUSD
 
 🚪 离场 / 人工介入标准：
 
-apxUSD 价格偏离 1 美元超过 `0.30%`；或 apxUSD / apyUSD 供应量 1 分钟或 30 分钟变化超过 `10%`；或 apxUSD 单笔 mint/burn 超过 `5M`；或 apyUSD 单笔 mint/burn 超过 `2M`；或 apyUSD 新增 share 超过 `100K` 且底层资产背书低于 `99%`；或 Pendle 单池 liquidity / APY / PT price 在 30 分钟窗口触发阈值；或任意被监控合约出现权限、升级、暂停事件。
+Accountable PoR 偿付率跌破 `100%`；或偿付率低于 `100.5%` 且持续恶化；或 PoR 数据超过 `120` 分钟未更新；或 apxUSD 价格偏离 1 美元超过 `0.30%`；或 apxUSD / apyUSD 供应量 1 分钟或 30 分钟变化超过 `10%`；或 apxUSD 单笔 mint/burn 超过 `5M`；或 apyUSD 单笔 mint/burn 超过 `2M`；或 apyUSD 新增 share 超过 `100K` 且底层资产背书低于 `99%`；或 Pendle 单池 liquidity / APY / PT price 在 30 分钟窗口触发阈值；或任意被监控合约出现权限、升级、暂停事件。
 
 ────────────────────────────
 
-🔍 监控器（8 类，持续运行中）
+🔍 监控器（9 类，持续运行中）
+
+🚨 APYX Accountable PoR 偿付状态（每 5 分钟检测一次）
+
+通过 Accountable 官方 APYX Proof of Solvency 页面背后的公开接口读取实时偿付证明：
+
+`https://api.accountable.apyx.fi/dashboard`
+
+监控字段包括：
+
+• `collateralization`：总储备 / 总供应  
+• `reserves.total_reserves.value`：总储备  
+• `reserves.total_supply.value`：总供应  
+• `net`：净超额储备  
+• `ts`：Accountable 数据更新时间
+
+阈值：
+
+• 偿付率 `<100%`、总储备 `<` 总供应或 `net < 0`：紧急告警  
+• 偿付率 `<100.5%`：预警，表示储备缓冲不足  
+• 数据超过 `120` 分钟未更新：预警，表示实时 PoR 失去新鲜度
+
+该接口请求需要带浏览器 `User-Agent`、`Origin` 和 `Referer` 头，否则可能返回 `403`。该监控是储备充足率信号，不替代 apxUSD 价格脱锚、STRC 价格、链上供应和权限事件监控。
 
 🚨 apxUSD 价格脱锚（每 1 分钟检测一次）
 
@@ -123,8 +147,9 @@ apxUSD 价格偏离 1 美元超过 `0.30%`；或 apxUSD / apyUSD 供应量 1 分
 • 🟢 表示当前没有活跃告警。  
 • 🔴 表示该 section 至少有一个活跃告警。  
 • 对持续性指标，红色会持续到下一轮检查确认恢复。  
-• 对链上安全事件，红色会在事件发生后保持 `60` 分钟，即使事件本身是一次性日志。
+• 对链上安全事件，红色会在事件发生后保持 `60` 分钟，即使事件本身是一次性日志。  
+• 对 Accountable PoR 偿付状态，红色会持续到下一轮 5 分钟检查确认偿付率、储备/供应和数据新鲜度恢复正常。
 
 📝 当前监控范围说明：
 
-当前系统覆盖 Ethereum 主网上配置的 apxUSD、apyUSD、apyUSD ERC-4626 vault、Pendle apxUSD/apyUSD 市场，以及 STRC 外部风险信号。系统没有接入 PoR/储备证明数据，也没有覆盖多链部署、跨链桥、CEX 深度、所有 DEX 池子和所有持仓地址集中度。若后续需要更完整的稳定币风控，应补充储备证明、主池深度、主要 holder concentration、多链 supply 和跨链桥事件监控。
+当前系统覆盖 Ethereum 主网上配置的 apxUSD、apyUSD、apyUSD ERC-4626 vault、Pendle apxUSD/apyUSD 市场、Accountable APYX PoR 偿付状态，以及 STRC 外部风险信号。系统尚未覆盖多链部署、跨链桥、CEX 深度、所有 DEX 池子和所有持仓地址集中度。若后续需要更完整的稳定币风控，应继续补充主池深度、主要 holder concentration、多链 supply 和跨链桥事件监控。

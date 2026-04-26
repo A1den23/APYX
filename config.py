@@ -68,6 +68,14 @@ class SecurityConfig:
 
 
 @dataclass(frozen=True)
+class SolvencyConfig:
+    accountable_url: str
+    warning_collateralization: float
+    critical_collateralization: float
+    max_data_age_minutes: int
+
+
+@dataclass(frozen=True)
 class AlertConfig:
     cooldown_minutes: int
 
@@ -80,6 +88,7 @@ class AppConfig:
     supply: SupplyConfig
     apyusd: ApyUsdConfig
     security: SecurityConfig
+    solvency: SolvencyConfig
     alert: AlertConfig
 
 
@@ -116,6 +125,7 @@ def load_app_config(path: str | Path = "config.yaml") -> AppConfig:
             window_minutes=int(data["apyusd"]["window_minutes"]),
         ),
         security=_load_security_config(data.get("security", {})),
+        solvency=_load_solvency_config(data["solvency"]),
         alert=AlertConfig(
             cooldown_minutes=int(data["alert"]["cooldown_minutes"]),
         ),
@@ -137,6 +147,15 @@ def _load_security_config(data: dict) -> SecurityConfig:
         recent_event_hold_minutes=int(data.get("recent_event_hold_minutes", 60)),
         apyusd_min_supply_increase=float(data.get("apyusd_min_supply_increase", 100000)),
         apyusd_min_backing_ratio=float(data.get("apyusd_min_backing_ratio", 0.99)),
+    )
+
+
+def _load_solvency_config(data: dict) -> SolvencyConfig:
+    return SolvencyConfig(
+        accountable_url=data["accountable_url"],
+        warning_collateralization=float(data["warning_collateralization"]),
+        critical_collateralization=float(data["critical_collateralization"]),
+        max_data_age_minutes=int(data["max_data_age_minutes"]),
     )
 
 

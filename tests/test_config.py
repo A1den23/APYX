@@ -46,6 +46,11 @@ security:
   recent_event_hold_minutes: 60
   apyusd_min_supply_increase: 100000
   apyusd_min_backing_ratio: 0.99
+solvency:
+  accountable_url: "https://api.accountable.apyx.fi/dashboard"
+  warning_collateralization: 1.005
+  critical_collateralization: 1.0
+  max_data_age_minutes: 120
 alert:
   cooldown_minutes: 5
 """.strip(),
@@ -77,6 +82,10 @@ def test_load_app_config_parses_thresholds_and_addresses(tmp_path: Path) -> None
     assert settings.security.recent_event_hold_minutes == 60
     assert settings.security.apyusd_min_supply_increase == 100000
     assert settings.security.apyusd_min_backing_ratio == 0.99
+    assert settings.solvency.accountable_url == "https://api.accountable.apyx.fi/dashboard"
+    assert settings.solvency.warning_collateralization == 1.005
+    assert settings.solvency.critical_collateralization == 1.0
+    assert settings.solvency.max_data_age_minutes == 120
     assert settings.alert.cooldown_minutes == 5
 
 

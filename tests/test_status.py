@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from alert.engine import AlertEngine
 from config import EnvConfig, load_app_config
 from history import RollingMetricHistory
+from monitors.solvency import AccountableSolvencySnapshot
 from status import build_status_message
 
 
@@ -39,12 +40,24 @@ def test_status_labels_apyusd_supply_as_share_total_supply(monkeypatch) -> None:
     async def fake_fetch_price_apxusd_async(web3, *, address: str) -> float:
         return 1.3569
 
+    async def fake_fetch_solvency_snapshot(session, *, url: str):
+        return AccountableSolvencySnapshot(
+            collateralization=1.007765,
+            total_reserves=201_414_546.13,
+            total_supply=199_862_614.0,
+            net=1_551_932.13,
+            timestamp=datetime(2026, 4, 26, 9, 20, 8, tzinfo=timezone.utc),
+            verifiability="100",
+            interval="live",
+        )
+
     monkeypatch.setattr("status.fetch_strc_price", fake_fetch_strc_price)
     monkeypatch.setattr("status.fetch_pendle_market", fake_fetch_pendle_market)
     monkeypatch.setattr("status.fetch_peg_price", fake_fetch_peg_price)
     monkeypatch.setattr("status.fetch_total_supply_async", fake_fetch_total_supply_async)
     monkeypatch.setattr("status.fetch_total_assets_async", fake_fetch_total_assets_async)
     monkeypatch.setattr("status.fetch_price_apxusd_async", fake_fetch_price_apxusd_async)
+    monkeypatch.setattr("status.fetch_solvency_snapshot", fake_fetch_solvency_snapshot)
 
     message, parse_mode = asyncio.run(
         build_status_message(
@@ -64,6 +77,9 @@ def test_status_labels_apyusd_supply_as_share_total_supply(monkeypatch) -> None:
     assert "TVL" not in message
     assert "totalAssets" in message
     assert "priceAPXUSD" in message
+    assert "Accountable PoR" in message
+    assert "偿付率" in message
+    assert "100.78%" in message
 
 
 def test_status_marks_protocol_security_red_when_security_events_active(monkeypatch) -> None:
@@ -98,12 +114,24 @@ def test_status_marks_protocol_security_red_when_security_events_active(monkeypa
     async def fake_fetch_price_apxusd_async(web3, *, address: str) -> float:
         return 1.3569
 
+    async def fake_fetch_solvency_snapshot(session, *, url: str):
+        return AccountableSolvencySnapshot(
+            collateralization=1.03,
+            total_reserves=205_000_000.0,
+            total_supply=199_000_000.0,
+            net=6_000_000.0,
+            timestamp=datetime(2026, 4, 26, 9, 20, 8, tzinfo=timezone.utc),
+            verifiability="100",
+            interval="live",
+        )
+
     monkeypatch.setattr("status.fetch_strc_price", fake_fetch_strc_price)
     monkeypatch.setattr("status.fetch_pendle_market", fake_fetch_pendle_market)
     monkeypatch.setattr("status.fetch_peg_price", fake_fetch_peg_price)
     monkeypatch.setattr("status.fetch_total_supply_async", fake_fetch_total_supply_async)
     monkeypatch.setattr("status.fetch_total_assets_async", fake_fetch_total_assets_async)
     monkeypatch.setattr("status.fetch_price_apxusd_async", fake_fetch_price_apxusd_async)
+    monkeypatch.setattr("status.fetch_solvency_snapshot", fake_fetch_solvency_snapshot)
     engine = AlertEngine(cooldown=timedelta(minutes=5))
     engine.evaluate(
         metric_key="security_events",

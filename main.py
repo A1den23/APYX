@@ -38,6 +38,7 @@ from monitors.security_events import (
     fetch_logs_async,
     parse_token_movements,
 )
+from monitors.solvency import evaluate_solvency, fetch_solvency_snapshot
 from monitors.strc_price import evaluate_strc_price, fetch_strc_price
 from monitors.supply import evaluate_supply, fetch_total_supply_async
 
@@ -90,6 +91,7 @@ def _register_monitors(tracker: HealthTracker, settings: AppConfig) -> None:
     tracker.register("apyusd_price_apxusd", 60)
     tracker.register(f"mint_backing:{settings.apyusd.token.name}", 60)
     tracker.register("security_events", 60)
+    tracker.register("solvency:accountable", 300)
     tracker.register("lifecycle_notifications", 0)
     tracker.register("telegram_commands", 0)
     for market in settings.pendle.markets:
@@ -359,6 +361,24 @@ async def run_five_minute_checks(
         tracker.record_success("strc")
     except Exception as e:
         tracker.record_failure("strc", str(e))
+
+    try:
+        solvency = await fetch_solvency_snapshot(
+            session, url=settings.solvency.accountable_url
+        )
+        solvency_event = evaluate_solvency(
+            snapshot=solvency,
+            warning_collateralization=settings.solvency.warning_collateralization,
+            critical_collateralization=settings.solvency.critical_collateralization,
+            max_data_age=timedelta(minutes=settings.solvency.max_data_age_minutes),
+            engine=engine,
+            now=now,
+        )
+        if solvency_event is not None:
+            events.append(solvency_event)
+        tracker.record_success("solvency:accountable")
+    except Exception as e:
+        tracker.record_failure("solvency:accountable", str(e))
 
     await send_events(sender, events, engine=engine, tracker=tracker)
 
