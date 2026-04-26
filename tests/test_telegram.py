@@ -62,6 +62,29 @@ def test_dispatch_strategy_command_replies_with_strategy_text() -> None:
     assert update.message.replies == [("APYX strategy", None)]
 
 
+def test_dispatch_strategy_command_accepts_bot_username_suffix() -> None:
+    sender = TelegramSender("token", "123")
+    update = FakeUpdate("/strategy@ApyxMonitorBot")
+
+    async def strategy_fn() -> str:
+        return "APYX strategy"
+
+    sender._strategy_fn = strategy_fn
+
+    asyncio.run(sender._dispatch(update))
+
+    assert update.message.replies == [("APYX strategy", None)]
+
+
+def test_dispatch_ignores_blank_text() -> None:
+    sender = TelegramSender("token", "123")
+    update = FakeUpdate("   ")
+
+    asyncio.run(sender._dispatch(update))
+
+    assert update.message.replies == []
+
+
 def test_dispatch_strategy_command_splits_long_strategy_text() -> None:
     sender = TelegramSender("token", "123")
     update = FakeUpdate("/strategy")

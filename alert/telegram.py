@@ -72,21 +72,21 @@ class TelegramSender:
             return
         if str(update.effective_chat.id) != self._chat_id:
             return
-        text = update.message.text.strip()
-        if text == "/status" and self._status_fn:
+        command = _command_name(update.message.text)
+        if command == "/status" and self._status_fn:
             result = await self._status_fn()
             if isinstance(result, tuple):
                 msg, parse_mode = result
             else:
                 msg, parse_mode = result, None
             await self._reply_text(update, msg, parse_mode=parse_mode)
-        elif text == "/health" and self._health_fn:
+        elif command == "/health" and self._health_fn:
             msg = await self._health_fn()
             await self._reply_text(update, msg)
-        elif text == "/strategy" and self._strategy_fn:
+        elif command == "/strategy" and self._strategy_fn:
             msg = await self._strategy_fn()
             await self._reply_text(update, msg)
-        elif text == "/help" and self._help_fn:
+        elif command == "/help" and self._help_fn:
             msg = await self._help_fn()
             await self._reply_text(update, msg)
 
@@ -123,3 +123,13 @@ def _split_reply_text(text: str) -> list[str]:
     if remaining:
         chunks.append(remaining)
     return chunks
+
+
+def _command_name(text: str) -> str:
+    parts = text.strip().split(maxsplit=1)
+    if not parts:
+        return ""
+    command = parts[0].lower()
+    if "@" in command:
+        command = command.split("@", 1)[0]
+    return command

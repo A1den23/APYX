@@ -8,7 +8,7 @@ from monitors.solvency import AccountableSolvencySnapshot
 from status import build_status_message
 
 
-def test_status_labels_apyusd_supply_as_share_total_supply(monkeypatch) -> None:
+def test_status_uses_compact_metric_labels(monkeypatch) -> None:
     settings = load_app_config()
     env = EnvConfig(
         finnhub_api_key="key",
@@ -72,14 +72,17 @@ def test_status_labels_apyusd_supply_as_share_total_supply(monkeypatch) -> None:
 
     assert parse_mode == "HTML"
     assert "<b>apyUSD</b>" in message
-    assert "供应 (share totalSupply)" in message
+    assert "totalSupply" in message
+    assert "53.94M shares" in message
+    assert "供应 (share totalSupply)" not in message
     assert "或 ±2.00M" in message
     assert "TVL" not in message
     assert "totalAssets" in message
     assert "priceAPXUSD" in message
     assert "Accountable PoR" in message
-    assert "偿付率" in message
+    assert "PoR ratio" in message
     assert "100.78%" in message
+    assert "异常后60min保持红色" not in message
 
 
 def test_status_marks_protocol_security_red_when_security_events_active(monkeypatch) -> None:
