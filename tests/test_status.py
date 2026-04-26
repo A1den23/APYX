@@ -74,15 +74,18 @@ def test_status_uses_compact_metric_labels(monkeypatch) -> None:
     assert "<b>apyUSD</b>" in message
     assert "totalSupply" in message
     assert "53.94M shares" in message
+    assert "<b>STRC</b>  $101.00" in message
+    assert "liq $1.00M | APY 8.00% | PT $0.9600" in message
+    assert "PoR 100.78% | reserves $201.41M" in message
     assert "供应 (share totalSupply)" not in message
     assert "预警 1m/30m" not in message
     assert "或 ±2.00M" not in message
     assert "预警 &lt;" not in message
+    assert "price              " not in message
     assert "TVL" not in message
     assert "totalAssets" in message
     assert "priceAPXUSD" in message
     assert "Accountable PoR" in message
-    assert "PoR ratio" in message
     assert "100.78%" in message
     assert "异常后60min保持红色" not in message
 

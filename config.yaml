@@ -50,7 +50,7 @@ solvency:
   accountable_url: "https://api.accountable.apyx.fi/dashboard"
   warning_collateralization: 1.005
   critical_collateralization: 1.0
-  max_data_age_minutes: 120
+  max_data_age_minutes: 30
 
 alert:
   cooldown_minutes: 5

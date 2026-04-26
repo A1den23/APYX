@@ -50,7 +50,7 @@ solvency:
   accountable_url: "https://api.accountable.apyx.fi/dashboard"
   warning_collateralization: 1.005
   critical_collateralization: 1.0
-  max_data_age_minutes: 120
+  max_data_age_minutes: 30
 alert:
   cooldown_minutes: 5
 """.strip(),
@@ -85,7 +85,7 @@ def test_load_app_config_parses_thresholds_and_addresses(tmp_path: Path) -> None
     assert settings.solvency.accountable_url == "https://api.accountable.apyx.fi/dashboard"
     assert settings.solvency.warning_collateralization == 1.005
     assert settings.solvency.critical_collateralization == 1.0
-    assert settings.solvency.max_data_age_minutes == 120
+    assert settings.solvency.max_data_age_minutes == 30
     assert settings.alert.cooldown_minutes == 5
 
 

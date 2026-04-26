@@ -23,17 +23,6 @@ def _html_error(error: Exception) -> str:
     return escape(safe_error_message(error))
 
 
-def _display_width(s: str) -> int:
-    return sum(2 if ord(c) > 0x7F else 1 for c in s)
-
-
-def _rpad(s: str, width: int) -> str:
-    return s + " " * max(1, width - _display_width(s))
-
-
-_LABEL_COL = 18
-
-
 async def build_status_message(
     *,
     session: ClientSession,
@@ -53,12 +42,9 @@ async def build_status_message(
     keys: list[str] = []
     try:
         strc_price = await fetch_strc_price(session, api_key=env.finnhub_api_key, symbol=settings.finnhub.symbol)
-        lines.append("  <b>STRC</b>")
-        lines.append(
-            f"    {_rpad('price', _LABEL_COL)} <b>${strc_price:.2f}</b>"
-        )
+        lines.append(f"<b>STRC</b>  ${strc_price:.2f}")
     except Exception as e:
-        lines.append(f"  STRC  ERROR - {_html_error(e)}")
+        lines.append(f"STRC  ERROR - {_html_error(e)}")
     keys.append("strc:price")
     section_data.append(("🌐 宏观风险", lines, keys))
 
@@ -68,18 +54,14 @@ async def build_status_message(
     for market in settings.pendle.markets:
         try:
             snap = await fetch_pendle_market(session, name=market.name, address=market.address)
-            lines.append(f"  <b>{market.name}</b>")
             lines.append(
-                f"    {_rpad('liquidity', _LABEL_COL)} <b>${snap.liquidity/1e6:.2f}M</b>"
-            )
-            lines.append(
-                f"    {_rpad('implied APY', _LABEL_COL)} <b>{snap.implied_apy:.2%}</b>"
-            )
-            lines.append(
-                f"    {_rpad('PT price', _LABEL_COL)} <b>${snap.pt_price:.4f}</b>"
+                f"<b>{market.name}</b>  "
+                f"liq ${snap.liquidity/1e6:.2f}M | "
+                f"APY {snap.implied_apy:.2%} | "
+                f"PT ${snap.pt_price:.4f}"
             )
         except Exception as e:
-            lines.append(f"  <b>{market.name}</b>  ERROR - {_html_error(e)}")
+            lines.append(f"<b>{market.name}</b>  ERROR - {_html_error(e)}")
         keys.extend([
             f"pendle_liquidity:{market.name}",
             f"pendle_apy:{market.name}",
@@ -92,7 +74,7 @@ async def build_status_message(
     keys = []
 
     # apxUSD metrics
-    lines.append("  <b>apxUSD</b>")
+    lines.append("<b>apxUSD</b>")
     try:
         solvency = await fetch_solvency_snapshot(
             session, url=settings.solvency.accountable_url
@@ -100,30 +82,23 @@ async def build_status_message(
         update_str = solvency.timestamp.astimezone(
             timezone(timedelta(hours=8))
         ).strftime("%m/%d %H:%M")
-        lines.append("    <b>Accountable PoR</b>")
+        lines.append("Accountable PoR")
         lines.append(
-            f"    {_rpad('PoR ratio', _LABEL_COL)} <b>{solvency.collateralization:.2%}</b>"
+            f"PoR {solvency.collateralization:.2%} | "
+            f"reserves ${solvency.total_reserves/1e6:.2f}M"
         )
         lines.append(
-            f"    {_rpad('PoR reserves', _LABEL_COL)} <b>${solvency.total_reserves/1e6:.2f}M</b>"
-        )
-        lines.append(
-            f"    {_rpad('PoR supply', _LABEL_COL)} <b>${solvency.total_supply/1e6:.2f}M</b>"
-        )
-        lines.append(
-            f"    {_rpad('PoR updated', _LABEL_COL)} <b>{update_str}</b>"
+            f"supply ${solvency.total_supply/1e6:.2f}M | updated {update_str}"
         )
     except Exception as e:
-        lines.append(f"    Accountable PoR  ERROR - {_html_error(e)}")
+        lines.append(f"Accountable PoR  ERROR - {_html_error(e)}")
     keys.append("solvency:accountable")
 
     try:
         peg_price = await fetch_peg_price(session, address=settings.peg.token.address)
-        lines.append(
-            f"    {_rpad('price', _LABEL_COL)} <b>${peg_price:.4f}</b>"
-        )
+        lines.append(f"price ${peg_price:.4f}")
     except Exception as e:
-        lines.append(f"    价格  ERROR - {_html_error(e)}")
+        lines.append(f"price ERROR - {_html_error(e)}")
     keys.append(f"peg:{settings.peg.token.name}")
 
     for token in settings.supply.tokens:
@@ -131,60 +106,51 @@ async def build_status_message(
             continue
         try:
             supply = await fetch_total_supply_async(web3, address=token.address)
-            lines.append(
-                f"    {_rpad('totalSupply', _LABEL_COL)} <b>{supply/1e6:.2f}M</b>"
-            )
+            lines.append(f"totalSupply {supply/1e6:.2f}M")
         except Exception as e:
-            lines.append(f"    供应  ERROR - {_html_error(e)}")
+            lines.append(f"totalSupply ERROR - {_html_error(e)}")
         keys.append(f"supply:{token.name}")
 
     # apyUSD metrics
-    lines.append("  <b>apyUSD</b>")
+    lines.append("")
+    lines.append("<b>apyUSD</b>")
     for token in settings.supply.tokens:
         if token.name != "apyUSD":
             continue
         try:
             supply = await fetch_total_supply_async(web3, address=token.address)
-            lines.append(
-                f"    {_rpad('totalSupply', _LABEL_COL)} <b>{supply/1e6:.2f}M shares</b>"
-            )
+            lines.append(f"totalSupply {supply/1e6:.2f}M shares")
         except Exception as e:
-            lines.append(f"    供应  ERROR - {_html_error(e)}")
+            lines.append(f"totalSupply ERROR - {_html_error(e)}")
         keys.append(f"supply:{token.name}")
 
     try:
         total_assets = await fetch_total_assets_async(
             web3, address=settings.apyusd.token.address
         )
-        lines.append(
-            f"    {_rpad('totalAssets', _LABEL_COL)} <b>{total_assets/1e6:.2f}M apxUSD</b>"
-        )
+        lines.append(f"totalAssets {total_assets/1e6:.2f}M apxUSD")
     except Exception as e:
-        lines.append(f"    totalAssets  ERROR - {_html_error(e)}")
+        lines.append(f"totalAssets ERROR - {_html_error(e)}")
     keys.append(f"total_assets:{settings.apyusd.token.name}")
 
     try:
         price_apxusd = await fetch_price_apxusd_async(
             web3, address=settings.apyusd.token.address
         )
-        lines.append(
-            f"    {_rpad('priceAPXUSD', _LABEL_COL)} <b>{price_apxusd:.4f} apxUSD</b>"
-        )
+        lines.append(f"priceAPXUSD {price_apxusd:.4f} apxUSD")
     except Exception as e:
-        lines.append(f"    priceAPXUSD  ERROR - {_html_error(e)}")
+        lines.append(f"priceAPXUSD ERROR - {_html_error(e)}")
     keys.append("apyusd_price_apxusd")
 
     mint_backing_key = f"mint_backing:{settings.apyusd.token.name}"
     lines.append(
-        f"    {_rpad('mint backing', _LABEL_COL)} "
-        f"{'active alert' if mint_backing_key in active else 'normal'}"
+        f"mint backing {'active alert' if mint_backing_key in active else 'normal'}"
     )
     keys.append(mint_backing_key)
 
     security_events_key = "security_events"
     lines.append(
-        f"    {_rpad('security events', _LABEL_COL)} "
-        f"{'active alert' if security_events_key in active else 'normal'}"
+        f"security events {'active alert' if security_events_key in active else 'normal'}"
     )
     keys.append(security_events_key)
 
@@ -192,7 +158,7 @@ async def build_status_message(
 
     # ── 组装 ──
     now_str = now.astimezone(timezone(timedelta(hours=8))).strftime("%Y/%m/%d %H:%M:%S")
-    result = [f"📊 <b>APYX Monitor</b>  {now_str}", ""]
+    result = [f"📊 <b>APYX Monitor</b>", now_str, ""]
     has_alert = False
 
     for title, items, sec_keys in section_data:

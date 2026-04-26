@@ -23,7 +23,7 @@
 - `apyUSD priceAPXUSD` 每 1 分钟读取 apyUSD ERC-4626 `previewRedeem(1e18)`，代表 1 apyUSD 当前预览可赎回的 apxUSD 数量；同时比较 1 分钟相邻采样和 30 分钟窗口，任一窗口变化超过 `5%` 时告警。
 - `Security Events` 每 1 分钟扫描最近区块日志：当 apxUSD / apyUSD 单笔 mint 或 burn 超过各自供应量绝对阈值时告警；当被监控合约出现 `RoleGranted`、`RoleRevoked`、`OwnershipTransferred`、`AdminChanged`、`Upgraded`、`BeaconUpgraded`、`Paused`、`Unpaused` 时告警。安全事件发生后，`/status` 的协议安全区会保持红色 60 分钟。
 - `apyUSD mint backing` 对比 share supply 增量和 `totalAssets` 增量；当新增 share 超过 `100K` 且新增资产低于按 `priceAPXUSD` 计算所需资产的 `99%` 时告警。
-- `Solvency` 每 5 分钟读取 Accountable APYX PoR API；当偿付率低于 `100.5%`、低于 `100%`、总储备低于总供应、净超额储备为负，或数据超过 `120` 分钟未更新时告警。`/status` 会展示偿付率、储备/供应和更新时间。
+- `Solvency` 每 5 分钟读取 Accountable APYX PoR API；当偿付率低于 `100.5%`、低于 `100%`、总储备低于总供应、净超额储备为负，或数据超过 `30` 分钟未更新时告警。`/status` 会展示偿付率、储备/供应和更新时间。
 
 ## 部署（Docker）
 
