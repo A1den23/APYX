@@ -62,6 +62,38 @@ def test_dispatch_strategy_command_replies_with_strategy_text() -> None:
     assert update.message.replies == [("APYX strategy", None)]
 
 
+def test_dispatch_strategy_command_splits_long_strategy_text() -> None:
+    sender = TelegramSender("token", "123")
+    update = FakeUpdate("/strategy")
+
+    async def strategy_fn() -> str:
+        return "A" * 4100
+
+    sender._strategy_fn = strategy_fn
+
+    asyncio.run(sender._dispatch(update))
+
+    assert len(update.message.replies) == 2
+    assert "".join(reply for reply, _parse_mode in update.message.replies) == "A" * 4100
+    assert all(len(reply) <= 3900 for reply, _parse_mode in update.message.replies)
+
+
+def test_dispatch_status_keeps_parse_mode_when_splitting_long_text() -> None:
+    sender = TelegramSender("token", "123")
+    update = FakeUpdate("/status")
+
+    async def status_fn() -> tuple[str, str]:
+        return "B" * 4100, "HTML"
+
+    sender._status_fn = status_fn
+
+    asyncio.run(sender._dispatch(update))
+
+    assert len(update.message.replies) == 2
+    assert update.message.replies[0][1] == "HTML"
+    assert update.message.replies[1][1] == "HTML"
+
+
 def test_dispatch_help_command_replies_with_help_text() -> None:
     sender = TelegramSender("token", "123")
     update = FakeUpdate("/help")

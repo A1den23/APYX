@@ -10,6 +10,7 @@ from errors import safe_error_message
 
 POLL_INTERVAL = 2
 POLL_TIMEOUT = 10
+MAX_REPLY_CHARS = 3900
 
 
 class TelegramSender:
@@ -78,16 +79,26 @@ class TelegramSender:
                 msg, parse_mode = result
             else:
                 msg, parse_mode = result, None
-            await update.message.reply_text(msg, parse_mode=parse_mode)
+            await self._reply_text(update, msg, parse_mode=parse_mode)
         elif text == "/health" and self._health_fn:
             msg = await self._health_fn()
-            await update.message.reply_text(msg)
+            await self._reply_text(update, msg)
         elif text == "/strategy" and self._strategy_fn:
             msg = await self._strategy_fn()
-            await update.message.reply_text(msg)
+            await self._reply_text(update, msg)
         elif text == "/help" and self._help_fn:
             msg = await self._help_fn()
-            await update.message.reply_text(msg)
+            await self._reply_text(update, msg)
+
+    async def _reply_text(
+        self,
+        update: Update,
+        text: str,
+        *,
+        parse_mode: str | None = None,
+    ) -> None:
+        for chunk in _split_reply_text(text):
+            await update.message.reply_text(chunk, parse_mode=parse_mode)
 
     async def stop_commands(self) -> None:
         if self._poll_task:
@@ -96,3 +107,19 @@ class TelegramSender:
                 await self._poll_task
             except asyncio.CancelledError:
                 pass
+
+
+def _split_reply_text(text: str) -> list[str]:
+    if len(text) <= MAX_REPLY_CHARS:
+        return [text]
+    chunks: list[str] = []
+    remaining = text
+    while len(remaining) > MAX_REPLY_CHARS:
+        split_at = remaining.rfind("\n", 0, MAX_REPLY_CHARS)
+        if split_at <= 0:
+            split_at = MAX_REPLY_CHARS
+        chunks.append(remaining[:split_at])
+        remaining = remaining[split_at:].lstrip("\n")
+    if remaining:
+        chunks.append(remaining)
+    return chunks
