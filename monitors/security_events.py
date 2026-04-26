@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from web3 import Web3
 
-from alert.engine import AlertEvent
+from alert.engine import AlertEngine, AlertEvent
 from config import SupplyToken
 
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
@@ -49,6 +49,63 @@ class LogScanState:
 
     def mark_scanned(self, block_number: int) -> None:
         self.last_scanned_block = block_number
+
+
+@dataclass
+class RecentSecurityEventCache:
+    hold_duration: timedelta
+    last_event_at: datetime | None = None
+    last_event_title: str = ""
+    last_event_body: str = ""
+
+    def evaluate(
+        self,
+        *,
+        events: list[AlertEvent],
+        engine: AlertEngine,
+        now: datetime,
+    ) -> AlertEvent | None:
+        if events:
+            latest_event = events[-1]
+            self.last_event_at = now
+            self.last_event_title = latest_event.title
+            self.last_event_body = latest_event.body
+            engine.evaluate(
+                metric_key="security_events",
+                breached=True,
+                alert_title="Security Events Recent",
+                alert_body=self._status_body(now),
+                recovery_title="Security Events Normal",
+                recovery_body="No security events in the last hour.",
+                now=now,
+            )
+            return None
+
+        if self.last_event_at is None:
+            return None
+
+        if now - self.last_event_at < self.hold_duration:
+            return None
+
+        return engine.evaluate(
+            metric_key="security_events",
+            breached=False,
+            alert_title="Security Events Recent",
+            alert_body=self._status_body(now),
+            recovery_title="Security Events Normal",
+            recovery_body="No security events in the last hour.",
+            now=now,
+        )
+
+    def _status_body(self, now: datetime) -> str:
+        if self.last_event_at is None:
+            return "No security events in the last hour."
+        age_minutes = (now - self.last_event_at).total_seconds() / 60
+        return (
+            f"Last event: {self.last_event_title}\n"
+            f"Age: {age_minutes:.1f} minutes\n"
+            f"{self.last_event_body}"
+        )
 
 
 @dataclass(frozen=True)

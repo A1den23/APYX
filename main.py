@@ -15,6 +15,7 @@ from errors import safe_error_message
 from health import HealthTracker
 from history import RollingMetricHistory
 from status import build_status_message, build_health_message
+from strategy import build_strategy_message
 from monitors.apyusd import (
     evaluate_supply_asset_backing,
     evaluate_price_apxusd,
@@ -28,6 +29,7 @@ from monitors.security_events import (
     PRIVILEGED_EVENT_TOPICS,
     TRANSFER_TOPIC,
     LogScanState,
+    RecentSecurityEventCache,
     evaluate_privileged_logs,
     evaluate_token_movements,
     fetch_decimals_async,
@@ -89,7 +91,9 @@ async def run_security_event_checks(
     web3: Web3,
     settings: AppConfig,
     state: LogScanState,
+    recent_security_events: RecentSecurityEventCache,
     token_decimals_by_address: dict[str, int],
+    engine: AlertEngine,
     now: datetime,
 ) -> list[AlertEvent]:
     latest_block = await asyncio.to_thread(lambda: int(web3.eth.block_number))
@@ -135,6 +139,13 @@ async def run_security_event_checks(
             now=now,
         )
     )
+    recovery_event = recent_security_events.evaluate(
+        events=events,
+        engine=engine,
+        now=now,
+    )
+    if recovery_event is not None:
+        events.append(recovery_event)
     state.mark_scanned(to_block)
     return events
 
@@ -149,6 +160,7 @@ async def run_one_minute_checks(
     sender: TelegramSender,
     tracker: HealthTracker,
     security_state: LogScanState,
+    recent_security_events: RecentSecurityEventCache,
     token_decimals_by_address: dict[str, int],
 ) -> None:
     now = datetime.now(timezone.utc)
@@ -265,7 +277,9 @@ async def run_one_minute_checks(
                 web3=web3,
                 settings=settings,
                 state=security_state,
+                recent_security_events=recent_security_events,
                 token_decimals_by_address=token_decimals_by_address,
+                engine=engine,
                 now=now,
             )
         )
@@ -341,6 +355,9 @@ async def run_service(*, once: bool) -> None:
         start_block_lookback=settings.security.start_block_lookback,
         max_blocks_per_scan=settings.security.max_blocks_per_scan,
     )
+    recent_security_events = RecentSecurityEventCache(
+        hold_duration=timedelta(minutes=settings.security.recent_event_hold_minutes)
+    )
     token_decimals_by_address: dict[str, int] = {}
     _register_monitors(tracker, settings)
     sender = TelegramSender(env.telegram_bot_token, env.telegram_chat_id)
@@ -362,6 +379,7 @@ async def run_service(*, once: bool) -> None:
                 sender=sender,
                 tracker=tracker,
                 security_state=security_state,
+                recent_security_events=recent_security_events,
                 token_decimals_by_address=token_decimals_by_address,
             )
             await run_five_minute_checks(
@@ -390,6 +408,7 @@ async def run_service(*, once: bool) -> None:
                 "sender": sender,
                 "tracker": tracker,
                 "security_state": security_state,
+                "recent_security_events": recent_security_events,
                 "token_decimals_by_address": token_decimals_by_address,
             },
             max_instances=1,
@@ -428,6 +447,7 @@ async def run_service(*, once: bool) -> None:
                     tracker=tracker,
                     engine=engine,
                 ),
+                strategy_fn=lambda: asyncio.to_thread(build_strategy_message),
                 error_fn=lambda error: tracker.record_failure(
                     "telegram_commands", error
                 ),

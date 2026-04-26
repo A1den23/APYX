@@ -62,6 +62,7 @@ class ApyUsdConfig:
 class SecurityConfig:
     start_block_lookback: int
     max_blocks_per_scan: int
+    recent_event_hold_minutes: int
     apyusd_min_supply_increase: float
     apyusd_min_backing_ratio: float
 
@@ -133,6 +134,7 @@ def _load_security_config(data: dict) -> SecurityConfig:
     return SecurityConfig(
         start_block_lookback=int(data.get("start_block_lookback", 25)),
         max_blocks_per_scan=int(data.get("max_blocks_per_scan", 100)),
+        recent_event_hold_minutes=int(data.get("recent_event_hold_minutes", 60)),
         apyusd_min_supply_increase=float(data.get("apyusd_min_supply_increase", 100000)),
         apyusd_min_backing_ratio=float(data.get("apyusd_min_backing_ratio", 0.99)),
     )

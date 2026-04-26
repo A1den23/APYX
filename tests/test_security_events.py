@@ -1,11 +1,12 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from alert.engine import AlertEvent
+from alert.engine import AlertEngine, AlertEvent
 from config import SupplyToken
 from monitors.security_events import (
     PRIVILEGED_EVENT_TOPICS,
     TRANSFER_TOPIC,
     LogScanState,
+    RecentSecurityEventCache,
     evaluate_privileged_logs,
     evaluate_token_movements,
     parse_token_movements,
@@ -155,3 +156,23 @@ def test_log_scan_state_starts_from_recent_blocks_and_advances() -> None:
     assert state.next_range(latest_block=1_000) == (976, 1_000)
     state.mark_scanned(1_000)
     assert state.next_range(latest_block=1_005) == (1_001, 1_005)
+
+
+def test_recent_security_event_cache_keeps_status_active_for_one_hour() -> None:
+    now = datetime(2026, 4, 26, 10, 0, tzinfo=timezone.utc)
+    engine = AlertEngine(cooldown=timedelta(minutes=5))
+    cache = RecentSecurityEventCache(hold_duration=timedelta(hours=1))
+    event = AlertEvent("ALERT", "apxUSD Privileged Event", "Event: RoleGranted", now)
+
+    assert cache.evaluate(events=[event], engine=engine, now=now) is None
+    assert "security_events" in engine.active_alerts()
+
+    assert cache.evaluate(events=[], engine=engine, now=now + timedelta(minutes=59)) is None
+    assert "security_events" in engine.active_alerts()
+
+    recovery = cache.evaluate(events=[], engine=engine, now=now + timedelta(hours=1, seconds=1))
+
+    assert recovery is not None
+    assert recovery.kind == "RECOVERY"
+    assert recovery.title == "Security Events Normal"
+    assert "security_events" not in engine.active_alerts()

@@ -21,6 +21,7 @@ class TelegramSender:
         self._poll_task: asyncio.Task | None = None
         self._status_fn: Callable[[], Coroutine] | None = None
         self._health_fn: Callable[[], Coroutine] | None = None
+        self._strategy_fn: Callable[[], Coroutine] | None = None
         self._error_fn: Callable[[str], None] | None = None
 
     async def send(self, event: AlertEvent) -> None:
@@ -30,10 +31,12 @@ class TelegramSender:
         self,
         status_fn: Callable[[], Coroutine],
         health_fn: Callable[[], Coroutine],
+        strategy_fn: Callable[[], Coroutine],
         error_fn: Callable[[str], None] | None = None,
     ) -> None:
         self._status_fn = status_fn
         self._health_fn = health_fn
+        self._strategy_fn = strategy_fn
         self._error_fn = error_fn
         self._poll_task = asyncio.create_task(self._poll_loop())
 
@@ -72,6 +75,9 @@ class TelegramSender:
             await update.message.reply_text(msg, parse_mode=parse_mode)
         elif text == "/health" and self._health_fn:
             msg = await self._health_fn()
+            await update.message.reply_text(msg)
+        elif text == "/strategy" and self._strategy_fn:
+            msg = await self._strategy_fn()
             await update.message.reply_text(msg)
 
     async def stop_commands(self) -> None:

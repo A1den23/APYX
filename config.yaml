@@ -42,6 +42,7 @@ apyusd:
 security:
   start_block_lookback: 25
   max_blocks_per_scan: 100
+  recent_event_hold_minutes: 60
   apyusd_min_supply_increase: 100000
   apyusd_min_backing_ratio: 0.99
 

@@ -43,6 +43,7 @@ apyusd:
 security:
   start_block_lookback: 25
   max_blocks_per_scan: 100
+  recent_event_hold_minutes: 60
   apyusd_min_supply_increase: 100000
   apyusd_min_backing_ratio: 0.99
 alert:
@@ -73,6 +74,7 @@ def test_load_app_config_parses_thresholds_and_addresses(tmp_path: Path) -> None
     assert settings.apyusd.window_minutes == 30
     assert settings.security.start_block_lookback == 25
     assert settings.security.max_blocks_per_scan == 100
+    assert settings.security.recent_event_hold_minutes == 60
     assert settings.security.apyusd_min_supply_increase == 100000
     assert settings.security.apyusd_min_backing_ratio == 0.99
     assert settings.alert.cooldown_minutes == 5

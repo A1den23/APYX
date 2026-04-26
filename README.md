@@ -20,7 +20,7 @@
 - `apyUSD supply` 每 1 分钟读取 apyUSD ERC20 `totalSupply()`，代表 share supply，不代表底层资产规模；同时比较 1 分钟相邻采样和 30 分钟窗口，任一窗口变化超过 `10%` 或绝对变化超过 `2M` share 时告警。
 - `apyUSD totalAssets` 每 1 分钟读取 apyUSD ERC-4626 `totalAssets()`，代表 vault 底层 apxUSD 资产规模；同时比较 1 分钟相邻采样和 30 分钟窗口，任一窗口变化超过 `10%` 或绝对变化超过 `5M apxUSD` 时告警。
 - `apyUSD priceAPXUSD` 每 1 分钟读取 apyUSD ERC-4626 `previewRedeem(1e18)`，代表 1 apyUSD 当前预览可赎回的 apxUSD 数量；同时比较 1 分钟相邻采样和 30 分钟窗口，任一窗口变化超过 `5%` 时告警。
-- `Security Events` 每 1 分钟扫描最近区块日志：当 apxUSD / apyUSD 单笔 mint 或 burn 超过各自供应量绝对阈值时告警；当被监控合约出现 `RoleGranted`、`RoleRevoked`、`OwnershipTransferred`、`AdminChanged`、`Upgraded`、`BeaconUpgraded`、`Paused`、`Unpaused` 时告警。
+- `Security Events` 每 1 分钟扫描最近区块日志：当 apxUSD / apyUSD 单笔 mint 或 burn 超过各自供应量绝对阈值时告警；当被监控合约出现 `RoleGranted`、`RoleRevoked`、`OwnershipTransferred`、`AdminChanged`、`Upgraded`、`BeaconUpgraded`、`Paused`、`Unpaused` 时告警。安全事件发生后，`/status` 的协议安全区会保持红色 60 分钟。
 - `apyUSD mint backing` 对比 share supply 增量和 `totalAssets` 增量；当新增 share 超过 `100K` 且新增资产低于按 `priceAPXUSD` 计算所需资产的 `99%` 时告警。
 
 ## 部署（Docker）
@@ -52,6 +52,7 @@ docker compose logs -f
 |------|------|
 | `/status` | 查看所有监控指标当前值及阈值 |
 | `/health` | 服务自检：运行时间、成功率、数据新鲜度、错误分布 |
+| `/strategy` | 查看当前监控策略说明 |
 
 ## 项目结构
 

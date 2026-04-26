@@ -153,7 +153,8 @@ async def build_status_message(
     keys.append(f"mint_backing:{settings.apyusd.token.name}")
 
     lines.append(
-        f"    {_rpad('链上安全事件', _LABEL_COL)} 预警 大额mint/burn、权限、升级、暂停事件"
+        f"    {_rpad('链上安全事件', _LABEL_COL)} 预警 大额mint/burn、权限、升级、暂停事件；"
+        f"异常后{settings.security.recent_event_hold_minutes}min保持红色"
     )
     keys.append("security_events")
 

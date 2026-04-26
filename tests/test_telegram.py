@@ -10,6 +10,25 @@ class FailingBot:
         raise RuntimeError("poll failed token=secret")
 
 
+class FakeChat:
+    id = 123
+
+
+class FakeMessage:
+    def __init__(self, text: str) -> None:
+        self.text = text
+        self.replies: list[tuple[str, str | None]] = []
+
+    async def reply_text(self, text: str, parse_mode: str | None = None) -> None:
+        self.replies.append((text, parse_mode))
+
+
+class FakeUpdate:
+    def __init__(self, text: str) -> None:
+        self.message = FakeMessage(text)
+        self.effective_chat = FakeChat()
+
+
 def test_poll_loop_records_sanitized_errors(monkeypatch) -> None:
     sender = TelegramSender("token", "123")
     sender._bot = FailingBot()
@@ -27,3 +46,17 @@ def test_poll_loop_records_sanitized_errors(monkeypatch) -> None:
     assert errors
     assert "token=<redacted>" in errors[0]
     assert "secret" not in errors[0]
+
+
+def test_dispatch_strategy_command_replies_with_strategy_text() -> None:
+    sender = TelegramSender("token", "123")
+    update = FakeUpdate("/strategy")
+
+    async def strategy_fn() -> str:
+        return "APYX strategy"
+
+    sender._strategy_fn = strategy_fn
+
+    asyncio.run(sender._dispatch(update))
+
+    assert update.message.replies == [("APYX strategy", None)]
