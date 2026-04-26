@@ -53,6 +53,14 @@ docker compose logs -f
 | `/status` | 查看所有监控指标当前值及阈值 |
 | `/health` | 服务自检：运行时间、成功率、数据新鲜度、错误分布 |
 | `/strategy` | 查看当前监控策略说明 |
+| `/help` | 查看 Telegram 命令帮助 |
+
+## 生命周期通知
+
+服务以常驻模式运行时会发送 Telegram 系统通知：
+
+- Docker 容器启动并完成调度器初始化后，发送 `[APYX SYSTEM] APYX Monitor Started`。
+- Docker stop / redeploy 触发 `SIGTERM` 或 `SIGINT` 时，发送 `[APYX SYSTEM] APYX Monitor Stopping`，随后停止调度器和 Telegram 命令轮询。
 
 ## 项目结构
 

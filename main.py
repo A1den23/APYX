@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import signal
 from datetime import datetime, timedelta, timezone
 
 from aiohttp import ClientSession
@@ -13,6 +14,7 @@ from alert.telegram import TelegramSender
 from config import AppConfig, EnvConfig, load_app_config, load_env_config
 from errors import safe_error_message
 from health import HealthTracker
+from help import build_help_message
 from history import RollingMetricHistory
 from status import build_status_message, build_health_message
 from strategy import build_strategy_message
@@ -64,6 +66,21 @@ async def send_events(
             )
 
 
+async def send_lifecycle_notification(
+    sender: TelegramSender,
+    *,
+    tracker: HealthTracker,
+    title: str,
+    body: str,
+) -> None:
+    try:
+        await sender.send_text(f"[APYX SYSTEM] {title}\n{body}")
+    except Exception as e:
+        safe_error = safe_error_message(e)
+        tracker.record_failure("lifecycle_notifications", safe_error)
+        print(f"Failed to send lifecycle notification: {safe_error}", flush=True)
+
+
 def _register_monitors(tracker: HealthTracker, settings: AppConfig) -> None:
     tracker.register("peg", 60)
     for token in settings.supply.tokens:
@@ -73,6 +90,7 @@ def _register_monitors(tracker: HealthTracker, settings: AppConfig) -> None:
     tracker.register("apyusd_price_apxusd", 60)
     tracker.register(f"mint_backing:{settings.apyusd.token.name}", 60)
     tracker.register("security_events", 60)
+    tracker.register("lifecycle_notifications", 0)
     tracker.register("telegram_commands", 0)
     for market in settings.pendle.markets:
         tracker.register(f"pendle:{market.name}", 60)
@@ -394,6 +412,14 @@ async def run_service(*, once: bool) -> None:
             )
             return
 
+        stop_event = asyncio.Event()
+        loop = asyncio.get_running_loop()
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            try:
+                loop.add_signal_handler(sig, stop_event.set)
+            except NotImplementedError:
+                pass
+
         scheduler = AsyncIOScheduler(timezone=timezone.utc)
         scheduler.add_job(
             run_one_minute_checks,
@@ -448,6 +474,7 @@ async def run_service(*, once: bool) -> None:
                     engine=engine,
                 ),
                 strategy_fn=lambda: asyncio.to_thread(build_strategy_message),
+                help_fn=lambda: asyncio.to_thread(build_help_message),
                 error_fn=lambda error: tracker.record_failure(
                     "telegram_commands", error
                 ),
@@ -456,7 +483,21 @@ async def run_service(*, once: bool) -> None:
         except Exception as e:
             print(f"Failed to start command listener: {safe_error_message(e)}", flush=True)
         scheduler.start()
-        await asyncio.Event().wait()
+        await send_lifecycle_notification(
+            sender,
+            tracker=tracker,
+            title="APYX Monitor Started",
+            body="Docker container is running and monitors are scheduled.",
+        )
+        await stop_event.wait()
+        await send_lifecycle_notification(
+            sender,
+            tracker=tracker,
+            title="APYX Monitor Stopping",
+            body="Docker container received shutdown signal.",
+        )
+        scheduler.shutdown(wait=False)
+        await sender.stop_commands()
 
 
 def parse_args() -> argparse.Namespace:

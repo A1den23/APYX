@@ -22,21 +22,27 @@ class TelegramSender:
         self._status_fn: Callable[[], Coroutine] | None = None
         self._health_fn: Callable[[], Coroutine] | None = None
         self._strategy_fn: Callable[[], Coroutine] | None = None
+        self._help_fn: Callable[[], Coroutine] | None = None
         self._error_fn: Callable[[str], None] | None = None
 
     async def send(self, event: AlertEvent) -> None:
         await self._bot.send_message(chat_id=self._chat_id, text=event.telegram_text())
+
+    async def send_text(self, text: str) -> None:
+        await self._bot.send_message(chat_id=self._chat_id, text=text)
 
     async def start_commands(
         self,
         status_fn: Callable[[], Coroutine],
         health_fn: Callable[[], Coroutine],
         strategy_fn: Callable[[], Coroutine],
+        help_fn: Callable[[], Coroutine],
         error_fn: Callable[[str], None] | None = None,
     ) -> None:
         self._status_fn = status_fn
         self._health_fn = health_fn
         self._strategy_fn = strategy_fn
+        self._help_fn = help_fn
         self._error_fn = error_fn
         self._poll_task = asyncio.create_task(self._poll_loop())
 
@@ -78,6 +84,9 @@ class TelegramSender:
             await update.message.reply_text(msg)
         elif text == "/strategy" and self._strategy_fn:
             msg = await self._strategy_fn()
+            await update.message.reply_text(msg)
+        elif text == "/help" and self._help_fn:
+            msg = await self._help_fn()
             await update.message.reply_text(msg)
 
     async def stop_commands(self) -> None:

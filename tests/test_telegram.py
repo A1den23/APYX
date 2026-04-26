@@ -60,3 +60,17 @@ def test_dispatch_strategy_command_replies_with_strategy_text() -> None:
     asyncio.run(sender._dispatch(update))
 
     assert update.message.replies == [("APYX strategy", None)]
+
+
+def test_dispatch_help_command_replies_with_help_text() -> None:
+    sender = TelegramSender("token", "123")
+    update = FakeUpdate("/help")
+
+    async def help_fn() -> str:
+        return "APYX help"
+
+    sender._help_fn = help_fn
+
+    asyncio.run(sender._dispatch(update))
+
+    assert update.message.replies == [("APYX help", None)]
