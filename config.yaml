@@ -54,3 +54,7 @@ solvency:
 
 alert:
   cooldown_minutes: 5
+
+runtime:
+  state_path: "state/runtime-state.json"
+  http_timeout_seconds: 20

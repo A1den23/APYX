@@ -36,6 +36,7 @@ class LogScanState:
     start_block_lookback: int
     max_blocks_per_scan: int
     last_scanned_block: int | None = None
+    pending_scanned_block: int | None = None
 
     def next_range(self, *, latest_block: int) -> tuple[int, int] | None:
         if self.last_scanned_block is None:
@@ -49,6 +50,32 @@ class LogScanState:
 
     def mark_scanned(self, block_number: int) -> None:
         self.last_scanned_block = block_number
+        self.pending_scanned_block = None
+
+    def mark_pending(self, block_number: int) -> None:
+        self.pending_scanned_block = block_number
+
+    def commit_pending(self) -> None:
+        if self.pending_scanned_block is not None:
+            self.mark_scanned(self.pending_scanned_block)
+
+    def clear_pending(self) -> None:
+        self.pending_scanned_block = None
+
+    def to_dict(self) -> dict:
+        return {
+            "start_block_lookback": self.start_block_lookback,
+            "max_blocks_per_scan": self.max_blocks_per_scan,
+            "last_scanned_block": self.last_scanned_block,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "LogScanState":
+        return cls(
+            start_block_lookback=int(data["start_block_lookback"]),
+            max_blocks_per_scan=int(data["max_blocks_per_scan"]),
+            last_scanned_block=data.get("last_scanned_block"),
+        )
 
 
 @dataclass
@@ -105,6 +132,34 @@ class RecentSecurityEventCache:
             f"Last event: {self.last_event_title}\n"
             f"Age: {age_minutes:.1f} minutes\n"
             f"{self.last_event_body}"
+        )
+
+    def to_dict(self) -> dict:
+        return {
+            "hold_duration_seconds": self.hold_duration.total_seconds(),
+            "last_event_at": (
+                self.last_event_at.isoformat()
+                if self.last_event_at is not None
+                else None
+            ),
+            "last_event_title": self.last_event_title,
+            "last_event_body": self.last_event_body,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "RecentSecurityEventCache":
+        last_event_at = data.get("last_event_at")
+        return cls(
+            hold_duration=timedelta(
+                seconds=float(data.get("hold_duration_seconds", 3600))
+            ),
+            last_event_at=(
+                datetime.fromisoformat(last_event_at)
+                if last_event_at is not None
+                else None
+            ),
+            last_event_title=str(data.get("last_event_title", "")),
+            last_event_body=str(data.get("last_event_body", "")),
         )
 
 

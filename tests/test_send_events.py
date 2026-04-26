@@ -11,6 +11,14 @@ class FailingSender:
         raise RuntimeError("send failed token=secret")
 
 
+class RecordingSender:
+    def __init__(self) -> None:
+        self.events: list[AlertEvent] = []
+
+    async def send(self, event: AlertEvent) -> None:
+        self.events.append(event)
+
+
 def test_send_events_rolls_back_failed_delivery_and_records_safe_error() -> None:
     engine = AlertEngine(cooldown=timedelta(minutes=5))
     tracker = HealthTracker()
@@ -50,3 +58,49 @@ def test_send_events_rolls_back_failed_delivery_and_records_safe_error() -> None
     assert errors
     assert "secret" not in errors[0]
     assert "token=<redacted>" in errors[0]
+
+
+def test_send_events_returns_false_when_any_delivery_fails() -> None:
+    engine = AlertEngine(cooldown=timedelta(minutes=5))
+    tracker = HealthTracker()
+    event = AlertEvent(
+        "ALERT",
+        "apxUSD Large Mint",
+        "Amount: 6,000,000.00 apxUSD",
+        datetime(2026, 4, 24, 14, 30, tzinfo=timezone.utc),
+    )
+
+    delivered = asyncio.run(
+        send_events(
+            FailingSender(),
+            events=[event],
+            engine=engine,
+            tracker=tracker,
+        )
+    )
+
+    assert delivered is False
+
+
+def test_send_events_returns_true_when_all_deliveries_succeed() -> None:
+    engine = AlertEngine(cooldown=timedelta(minutes=5))
+    tracker = HealthTracker()
+    event = AlertEvent(
+        "ALERT",
+        "apxUSD Large Mint",
+        "Amount: 6,000,000.00 apxUSD",
+        datetime(2026, 4, 24, 14, 30, tzinfo=timezone.utc),
+    )
+    sender = RecordingSender()
+
+    delivered = asyncio.run(
+        send_events(
+            sender,
+            events=[event],
+            engine=engine,
+            tracker=tracker,
+        )
+    )
+
+    assert delivered is True
+    assert sender.events == [event]

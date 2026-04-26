@@ -78,3 +78,31 @@ class RollingMetricHistory:
             current=current,
             percent=percent_change(current=current, baseline=baseline_sample.value),
         )
+
+    def to_dict(self) -> dict:
+        return {
+            "retention_minutes": self._retention.total_seconds() / 60,
+            "samples": {
+                key: [
+                    {
+                        "value": sample.value,
+                        "timestamp": sample.timestamp.isoformat(),
+                    }
+                    for sample in samples
+                ]
+                for key, samples in self._samples.items()
+            },
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "RollingMetricHistory":
+        history = cls(retention_minutes=int(data.get("retention_minutes", 180)))
+        for key, samples in data.get("samples", {}).items():
+            history._samples[key] = deque(
+                MetricSample(
+                    value=float(sample["value"]),
+                    timestamp=datetime.fromisoformat(sample["timestamp"]),
+                )
+                for sample in samples
+            )
+        return history

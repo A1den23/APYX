@@ -46,7 +46,7 @@ class HealthTracker:
         with self._lock:
             return dict(self._metrics)
 
-    def total_runs(self, window: timedelta | None = None) -> tuple[int, int, int]:
+    def total_runs(self) -> tuple[int, int, int]:
         total_ok = sum(m.success_count for m in self._metrics.values())
         total_fail = sum(m.fail_count for m in self._metrics.values())
         return total_ok + total_fail, total_ok, total_fail

@@ -204,3 +204,34 @@ def test_alert_engine_can_rollback_failed_recovery_delivery() -> None:
 
     assert retry is not None
     assert retry.kind == "RECOVERY"
+
+
+def test_alert_engine_round_trips_active_state() -> None:
+    engine = AlertEngine(cooldown=timedelta(minutes=5))
+    now = datetime(2026, 4, 24, 14, 30, tzinfo=timezone.utc)
+    engine.evaluate(
+        metric_key="peg:apxUSD",
+        breached=True,
+        alert_title="apxUSD Peg Deviation",
+        alert_body="Price: $0.9960",
+        recovery_title="apxUSD Peg Normal",
+        recovery_body="Price: $1.0001",
+        now=now,
+    )
+
+    restored = AlertEngine.from_dict(engine.to_dict())
+
+    assert restored.cooldown == timedelta(minutes=5)
+    assert restored.active_alerts() == ["peg:apxUSD"]
+    assert (
+        restored.evaluate(
+            metric_key="peg:apxUSD",
+            breached=True,
+            alert_title="apxUSD Peg Deviation",
+            alert_body="Price: $0.9950",
+            recovery_title="apxUSD Peg Normal",
+            recovery_body="Price: $1.0001",
+            now=now + timedelta(minutes=1),
+        )
+        is None
+    )

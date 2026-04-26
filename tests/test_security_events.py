@@ -158,6 +158,18 @@ def test_log_scan_state_starts_from_recent_blocks_and_advances() -> None:
     assert state.next_range(latest_block=1_005) == (1_001, 1_005)
 
 
+def test_log_scan_state_round_trips_checkpoint() -> None:
+    state = LogScanState(start_block_lookback=25, max_blocks_per_scan=100)
+    state.mark_scanned(1_000)
+
+    restored = LogScanState.from_dict(state.to_dict())
+
+    assert restored.start_block_lookback == 25
+    assert restored.max_blocks_per_scan == 100
+    assert restored.last_scanned_block == 1_000
+    assert restored.next_range(latest_block=1_005) == (1_001, 1_005)
+
+
 def test_recent_security_event_cache_keeps_status_active_for_one_hour() -> None:
     now = datetime(2026, 4, 26, 10, 0, tzinfo=timezone.utc)
     engine = AlertEngine(cooldown=timedelta(minutes=5))
@@ -176,3 +188,18 @@ def test_recent_security_event_cache_keeps_status_active_for_one_hour() -> None:
     assert recovery.kind == "RECOVERY"
     assert recovery.title == "Security Events Normal"
     assert "security_events" not in engine.active_alerts()
+
+
+def test_recent_security_event_cache_round_trips_last_event() -> None:
+    now = datetime(2026, 4, 26, 10, 0, tzinfo=timezone.utc)
+    cache = RecentSecurityEventCache(hold_duration=timedelta(hours=1))
+    cache.last_event_at = now
+    cache.last_event_title = "apxUSD Privileged Event"
+    cache.last_event_body = "Event: RoleGranted"
+
+    restored = RecentSecurityEventCache.from_dict(cache.to_dict())
+
+    assert restored.hold_duration == timedelta(hours=1)
+    assert restored.last_event_at == now
+    assert restored.last_event_title == "apxUSD Privileged Event"
+    assert restored.last_event_body == "Event: RoleGranted"

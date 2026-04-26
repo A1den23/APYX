@@ -8,6 +8,7 @@ __pycache__
 tests
 docs/superpowers
 logs
+state
 requirements-dev.txt
 pytest.ini
 README.md

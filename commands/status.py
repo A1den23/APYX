@@ -17,10 +17,18 @@ from monitors.strc_price import fetch_strc_price
 from monitors.supply import fetch_total_supply_async
 from monitors.apyusd import fetch_price_apxusd_async, fetch_total_assets_async
 from monitors.solvency import fetch_solvency_snapshot
+from status_cache import StatusCache
 
 
 def _html_error(error: Exception) -> str:
     return escape(safe_error_message(error))
+
+
+def _cached_status_value(status_cache: StatusCache, key: str):
+    cached = status_cache.get(key)
+    if cached is None:
+        raise RuntimeError(f"No cached status value yet: {key}")
+    return cached.value
 
 
 async def build_status_message(
@@ -31,6 +39,7 @@ async def build_status_message(
     env: EnvConfig,
     history: RollingMetricHistory,
     engine: AlertEngine,
+    status_cache: StatusCache | None = None,
 ) -> tuple[str, str]:
     now = datetime.now(timezone.utc)
     active = set(engine.active_alerts())
@@ -41,7 +50,13 @@ async def build_status_message(
     lines: list[str] = []
     keys: list[str] = []
     try:
-        strc_price = await fetch_strc_price(session, api_key=env.finnhub_api_key, symbol=settings.finnhub.symbol)
+        strc_price = (
+            _cached_status_value(status_cache, "strc:price")
+            if status_cache is not None
+            else await fetch_strc_price(
+                session, api_key=env.finnhub_api_key, symbol=settings.finnhub.symbol
+            )
+        )
         lines.append(f"<b>STRC</b>  ${strc_price:.2f}")
     except Exception as e:
         lines.append(f"STRC  ERROR - {_html_error(e)}")
@@ -53,7 +68,14 @@ async def build_status_message(
     keys = []
     for market in settings.pendle.markets:
         try:
-            snap = await fetch_pendle_market(session, name=market.name, address=market.address)
+            cache_key = f"pendle:{market.name}"
+            snap = (
+                _cached_status_value(status_cache, cache_key)
+                if status_cache is not None
+                else await fetch_pendle_market(
+                    session, name=market.name, address=market.address
+                )
+            )
             lines.append(
                 f"<b>{market.name}</b>  "
                 f"liq ${snap.liquidity/1e6:.2f}M | "
@@ -76,8 +98,12 @@ async def build_status_message(
     # apxUSD metrics
     lines.append("<b>apxUSD</b>")
     try:
-        solvency = await fetch_solvency_snapshot(
-            session, url=settings.solvency.accountable_url
+        solvency = (
+            _cached_status_value(status_cache, "solvency:accountable")
+            if status_cache is not None
+            else await fetch_solvency_snapshot(
+                session, url=settings.solvency.accountable_url
+            )
         )
         update_str = solvency.timestamp.astimezone(
             timezone(timedelta(hours=8))
@@ -95,7 +121,12 @@ async def build_status_message(
     keys.append("solvency:accountable")
 
     try:
-        peg_price = await fetch_peg_price(session, address=settings.peg.token.address)
+        peg_key = f"peg:{settings.peg.token.name}"
+        peg_price = (
+            _cached_status_value(status_cache, peg_key)
+            if status_cache is not None
+            else await fetch_peg_price(session, address=settings.peg.token.address)
+        )
         lines.append(f"price ${peg_price:.4f}")
     except Exception as e:
         lines.append(f"price ERROR - {_html_error(e)}")
@@ -105,7 +136,12 @@ async def build_status_message(
         if token.name == "apyUSD":
             continue
         try:
-            supply = await fetch_total_supply_async(web3, address=token.address)
+            cache_key = f"supply:{token.name}"
+            supply = (
+                _cached_status_value(status_cache, cache_key)
+                if status_cache is not None
+                else await fetch_total_supply_async(web3, address=token.address)
+            )
             lines.append(f"totalSupply {supply/1e6:.2f}M")
         except Exception as e:
             lines.append(f"totalSupply ERROR - {_html_error(e)}")
@@ -118,15 +154,25 @@ async def build_status_message(
         if token.name != "apyUSD":
             continue
         try:
-            supply = await fetch_total_supply_async(web3, address=token.address)
+            cache_key = f"supply:{token.name}"
+            supply = (
+                _cached_status_value(status_cache, cache_key)
+                if status_cache is not None
+                else await fetch_total_supply_async(web3, address=token.address)
+            )
             lines.append(f"totalSupply {supply/1e6:.2f}M shares")
         except Exception as e:
             lines.append(f"totalSupply ERROR - {_html_error(e)}")
         keys.append(f"supply:{token.name}")
 
     try:
-        total_assets = await fetch_total_assets_async(
-            web3, address=settings.apyusd.token.address
+        cache_key = f"total_assets:{settings.apyusd.token.name}"
+        total_assets = (
+            _cached_status_value(status_cache, cache_key)
+            if status_cache is not None
+            else await fetch_total_assets_async(
+                web3, address=settings.apyusd.token.address
+            )
         )
         lines.append(f"totalAssets {total_assets/1e6:.2f}M apxUSD")
     except Exception as e:
@@ -134,8 +180,12 @@ async def build_status_message(
     keys.append(f"total_assets:{settings.apyusd.token.name}")
 
     try:
-        price_apxusd = await fetch_price_apxusd_async(
-            web3, address=settings.apyusd.token.address
+        price_apxusd = (
+            _cached_status_value(status_cache, "apyusd_price_apxusd")
+            if status_cache is not None
+            else await fetch_price_apxusd_async(
+                web3, address=settings.apyusd.token.address
+            )
         )
         lines.append(f"priceAPXUSD {price_apxusd:.4f} apxUSD")
     except Exception as e:

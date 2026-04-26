@@ -53,6 +53,9 @@ solvency:
   max_data_age_minutes: 30
 alert:
   cooldown_minutes: 5
+runtime:
+  state_path: "/tmp/apyx-state.json"
+  http_timeout_seconds: 12
 """.strip(),
         encoding="utf-8",
     )
@@ -87,6 +90,8 @@ def test_load_app_config_parses_thresholds_and_addresses(tmp_path: Path) -> None
     assert settings.solvency.critical_collateralization == 1.0
     assert settings.solvency.max_data_age_minutes == 30
     assert settings.alert.cooldown_minutes == 5
+    assert settings.runtime.state_path == "/tmp/apyx-state.json"
+    assert settings.runtime.http_timeout_seconds == 12
 
 
 def test_load_app_config_uses_immutable_collections(tmp_path: Path) -> None:

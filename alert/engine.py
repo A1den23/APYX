@@ -85,3 +85,34 @@ class AlertEngine:
         state = self._states.setdefault(event.metric_key, AlertState())
         state.active = event.previous_state.active
         state.last_sent_at = event.previous_state.last_sent_at
+
+    def to_dict(self) -> dict:
+        return {
+            "cooldown_seconds": self.cooldown.total_seconds(),
+            "states": {
+                key: {
+                    "active": state.active,
+                    "last_sent_at": (
+                        state.last_sent_at.isoformat()
+                        if state.last_sent_at is not None
+                        else None
+                    ),
+                }
+                for key, state in self._states.items()
+            },
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "AlertEngine":
+        engine = cls(cooldown=timedelta(seconds=float(data["cooldown_seconds"])))
+        for key, raw_state in data.get("states", {}).items():
+            last_sent_at = raw_state.get("last_sent_at")
+            engine._states[key] = AlertState(
+                active=bool(raw_state.get("active", False)),
+                last_sent_at=(
+                    datetime.fromisoformat(last_sent_at)
+                    if last_sent_at is not None
+                    else None
+                ),
+            )
+        return engine

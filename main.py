@@ -5,7 +5,7 @@ import asyncio
 import signal
 from datetime import datetime, timedelta, timezone
 
-from aiohttp import ClientSession
+from aiohttp import ClientSession, ClientTimeout
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from web3 import Web3
 
@@ -42,6 +42,8 @@ from monitors.security_events import (
 from monitors.solvency import evaluate_solvency, fetch_solvency_snapshot
 from monitors.strc_price import evaluate_strc_price, fetch_strc_price
 from monitors.supply import evaluate_supply, fetch_total_supply_async
+from runtime_state import RuntimeState, RuntimeStateStore
+from status_cache import StatusCache
 
 
 RPC_TIMEOUT_SECONDS = 20
@@ -54,11 +56,13 @@ async def send_events(
     *,
     engine: AlertEngine,
     tracker: HealthTracker,
-) -> None:
+) -> bool:
+    delivered = True
     for event in events:
         try:
             await sender.send(event)
         except Exception as e:
+            delivered = False
             engine.rollback(event)
             safe_error = safe_error_message(e)
             tracker.record_failure(f"alert:{event.metric_key or event.kind}", safe_error)
@@ -66,6 +70,29 @@ async def send_events(
                 f"Failed to send alert {event.metric_key or event.kind}: {safe_error}",
                 flush=True,
             )
+    return delivered
+
+
+def _save_runtime_state(
+    store: RuntimeStateStore,
+    *,
+    engine: AlertEngine,
+    history: RollingMetricHistory,
+    security_state: LogScanState,
+    recent_security_events: RecentSecurityEventCache,
+    tracker: HealthTracker,
+) -> None:
+    try:
+        store.save(
+            RuntimeState(
+                alert_engine=engine,
+                history=history,
+                security_state=security_state,
+                recent_security_events=recent_security_events,
+            )
+        )
+    except Exception as e:
+        tracker.record_failure("runtime_state", safe_error_message(e))
 
 
 async def send_lifecycle_notification(
@@ -167,7 +194,7 @@ async def run_security_event_checks(
     )
     if recovery_event is not None:
         events.append(recovery_event)
-    state.mark_scanned(to_block)
+    state.mark_pending(to_block)
     return events
 
 
@@ -183,6 +210,8 @@ async def run_one_minute_checks(
     security_state: LogScanState,
     recent_security_events: RecentSecurityEventCache,
     token_decimals_by_address: dict[str, int],
+    status_cache: StatusCache | None = None,
+    state_store: RuntimeStateStore | None = None,
 ) -> None:
     now = datetime.now(timezone.utc)
     events: list[AlertEvent] = []
@@ -193,6 +222,8 @@ async def run_one_minute_checks(
 
     try:
         peg_price = await fetch_peg_price(session, address=settings.peg.token.address)
+        if status_cache is not None:
+            status_cache.set(f"peg:{settings.peg.token.name}", peg_price, now)
         peg_event = evaluate_peg_price(
             token_name=settings.peg.token.name,
             price=peg_price,
@@ -211,6 +242,8 @@ async def run_one_minute_checks(
         try:
             previous_sample = history.latest_sample(key)
             supply = await fetch_total_supply_async(web3, address=token.address)
+            if status_cache is not None:
+                status_cache.set(key, supply, now)
             if token.name == settings.apyusd.token.name:
                 previous_apyusd_supply = previous_sample.value if previous_sample else None
                 current_apyusd_supply = supply
@@ -234,6 +267,8 @@ async def run_one_minute_checks(
     try:
         previous_sample = history.latest_sample(key)
         total_assets = await fetch_total_assets_async(web3, address=settings.apyusd.token.address)
+        if status_cache is not None:
+            status_cache.set(key, total_assets, now)
         previous_apyusd_total_assets = previous_sample.value if previous_sample else None
         current_apyusd_total_assets = total_assets
         total_assets_event = evaluate_total_assets(
@@ -256,6 +291,8 @@ async def run_one_minute_checks(
         price_apxusd = await fetch_price_apxusd_async(
             web3, address=settings.apyusd.token.address
         )
+        if status_cache is not None:
+            status_cache.set("apyusd_price_apxusd", price_apxusd, now)
         price_event = evaluate_price_apxusd(
             price_apxusd=price_apxusd,
             threshold_pct=settings.apyusd.price_apxusd_change_pct,
@@ -314,6 +351,8 @@ async def run_one_minute_checks(
             snapshot = await fetch_pendle_market(
                 session, name=market.name, address=market.address
             )
+            if status_cache is not None:
+                status_cache.set(key, snapshot, now)
             events.extend(
                 evaluate_pendle_market(
                     snapshot=snapshot,
@@ -330,7 +369,18 @@ async def run_one_minute_checks(
         except Exception as e:
             tracker.record_failure(key, str(e))
 
-    await send_events(sender, events, engine=engine, tracker=tracker)
+    delivered = await send_events(sender, events, engine=engine, tracker=tracker)
+    if delivered:
+        security_state.commit_pending()
+    if state_store is not None:
+        _save_runtime_state(
+            state_store,
+            engine=engine,
+            history=history,
+            security_state=security_state,
+            recent_security_events=recent_security_events,
+            tracker=tracker,
+        )
 
 
 async def run_five_minute_checks(
@@ -343,6 +393,10 @@ async def run_five_minute_checks(
     engine: AlertEngine,
     sender: TelegramSender,
     tracker: HealthTracker,
+    security_state: LogScanState,
+    recent_security_events: RecentSecurityEventCache,
+    status_cache: StatusCache | None = None,
+    state_store: RuntimeStateStore | None = None,
 ) -> None:
     now = datetime.now(timezone.utc)
     events: list[AlertEvent] = []
@@ -351,6 +405,8 @@ async def run_five_minute_checks(
         strc_price = await fetch_strc_price(
             session, api_key=env.finnhub_api_key, symbol=settings.finnhub.symbol
         )
+        if status_cache is not None:
+            status_cache.set("strc:price", strc_price, now)
         strc_event = evaluate_strc_price(
             price=strc_price,
             threshold=settings.finnhub.threshold_price,
@@ -367,6 +423,8 @@ async def run_five_minute_checks(
         solvency = await fetch_solvency_snapshot(
             session, url=settings.solvency.accountable_url
         )
+        if status_cache is not None:
+            status_cache.set("solvency:accountable", solvency, now)
         solvency_event = evaluate_solvency(
             snapshot=solvency,
             warning_collateralization=settings.solvency.warning_collateralization,
@@ -382,23 +440,51 @@ async def run_five_minute_checks(
         tracker.record_failure("solvency:accountable", str(e))
 
     await send_events(sender, events, engine=engine, tracker=tracker)
+    if state_store is not None:
+        _save_runtime_state(
+            state_store,
+            engine=engine,
+            history=history,
+            security_state=security_state,
+            recent_security_events=recent_security_events,
+            tracker=tracker,
+        )
 
 
 async def run_service(*, once: bool) -> None:
     settings = load_app_config()
     env = load_env_config()
-    engine = AlertEngine(cooldown=timedelta(minutes=settings.alert.cooldown_minutes))
-    history = RollingMetricHistory()
     tracker = HealthTracker()
-    security_state = LogScanState(
-        start_block_lookback=settings.security.start_block_lookback,
-        max_blocks_per_scan=settings.security.max_blocks_per_scan,
+    default_state = RuntimeState(
+        alert_engine=AlertEngine(
+            cooldown=timedelta(minutes=settings.alert.cooldown_minutes)
+        ),
+        history=RollingMetricHistory(),
+        security_state=LogScanState(
+            start_block_lookback=settings.security.start_block_lookback,
+            max_blocks_per_scan=settings.security.max_blocks_per_scan,
+        ),
+        recent_security_events=RecentSecurityEventCache(
+            hold_duration=timedelta(minutes=settings.security.recent_event_hold_minutes)
+        ),
     )
-    recent_security_events = RecentSecurityEventCache(
-        hold_duration=timedelta(minutes=settings.security.recent_event_hold_minutes)
-    )
+    state_store = RuntimeStateStore(settings.runtime.state_path)
+    if state_store.exists():
+        try:
+            runtime_state = state_store.load()
+        except Exception as e:
+            tracker.record_failure("runtime_state", safe_error_message(e))
+            runtime_state = default_state
+    else:
+        runtime_state = default_state
+    engine = runtime_state.alert_engine
+    history = runtime_state.history
+    security_state = runtime_state.security_state
+    recent_security_events = runtime_state.recent_security_events
     token_decimals_by_address: dict[str, int] = {}
+    status_cache = StatusCache()
     _register_monitors(tracker, settings)
+    tracker.register("runtime_state", 0)
     sender = TelegramSender(env.telegram_bot_token, env.telegram_chat_id)
     web3 = Web3(
         Web3.HTTPProvider(
@@ -407,7 +493,8 @@ async def run_service(*, once: bool) -> None:
         )
     )
 
-    async with ClientSession() as session:
+    timeout = ClientTimeout(total=settings.runtime.http_timeout_seconds)
+    async with ClientSession(timeout=timeout) as session:
         if once:
             await run_one_minute_checks(
                 session=session,
@@ -420,6 +507,8 @@ async def run_service(*, once: bool) -> None:
                 security_state=security_state,
                 recent_security_events=recent_security_events,
                 token_decimals_by_address=token_decimals_by_address,
+                status_cache=status_cache,
+                state_store=state_store,
             )
             await run_five_minute_checks(
                 session=session,
@@ -430,6 +519,10 @@ async def run_service(*, once: bool) -> None:
                 engine=engine,
                 sender=sender,
                 tracker=tracker,
+                security_state=security_state,
+                recent_security_events=recent_security_events,
+                status_cache=status_cache,
+                state_store=state_store,
             )
             return
 
@@ -457,6 +550,8 @@ async def run_service(*, once: bool) -> None:
                 "security_state": security_state,
                 "recent_security_events": recent_security_events,
                 "token_decimals_by_address": token_decimals_by_address,
+                "status_cache": status_cache,
+                "state_store": state_store,
             },
             max_instances=1,
             coalesce=True,
@@ -475,6 +570,10 @@ async def run_service(*, once: bool) -> None:
                 "engine": engine,
                 "sender": sender,
                 "tracker": tracker,
+                "security_state": security_state,
+                "recent_security_events": recent_security_events,
+                "status_cache": status_cache,
+                "state_store": state_store,
             },
             max_instances=1,
             coalesce=True,
@@ -489,6 +588,7 @@ async def run_service(*, once: bool) -> None:
                     env=env,
                     history=history,
                     engine=engine,
+                    status_cache=status_cache,
                 ),
                 health_fn=lambda: build_health_message(
                     tracker=tracker,

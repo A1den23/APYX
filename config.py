@@ -81,6 +81,12 @@ class AlertConfig:
 
 
 @dataclass(frozen=True)
+class RuntimeConfig:
+    state_path: str
+    http_timeout_seconds: int
+
+
+@dataclass(frozen=True)
 class AppConfig:
     finnhub: FinnhubConfig
     peg: PegConfig
@@ -90,6 +96,7 @@ class AppConfig:
     security: SecurityConfig
     solvency: SolvencyConfig
     alert: AlertConfig
+    runtime: RuntimeConfig
 
 
 def load_app_config(path: str | Path = "config.yaml") -> AppConfig:
@@ -129,6 +136,7 @@ def load_app_config(path: str | Path = "config.yaml") -> AppConfig:
         alert=AlertConfig(
             cooldown_minutes=int(data["alert"]["cooldown_minutes"]),
         ),
+        runtime=_load_runtime_config(data.get("runtime", {})),
     )
 
 
@@ -156,6 +164,13 @@ def _load_solvency_config(data: dict) -> SolvencyConfig:
         warning_collateralization=float(data["warning_collateralization"]),
         critical_collateralization=float(data["critical_collateralization"]),
         max_data_age_minutes=int(data["max_data_age_minutes"]),
+    )
+
+
+def _load_runtime_config(data: dict) -> RuntimeConfig:
+    return RuntimeConfig(
+        state_path=str(data.get("state_path", "state/runtime-state.json")),
+        http_timeout_seconds=int(data.get("http_timeout_seconds", 20)),
     )
 
 

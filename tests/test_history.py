@@ -82,3 +82,22 @@ def test_window_change_returns_none_for_zero_baseline() -> None:
         history.window_change("metric:sample", current=85.0, now=now, window_minutes=60)
         is None
     )
+
+
+def test_rolling_metric_history_round_trips_samples() -> None:
+    history = RollingMetricHistory(retention_minutes=180)
+    now = datetime(2026, 4, 24, 15, 30, tzinfo=timezone.utc)
+    history.record("supply:apxUSD", 100.0, now - timedelta(minutes=30))
+    history.record("supply:apxUSD", 110.0, now)
+
+    restored = RollingMetricHistory.from_dict(history.to_dict())
+
+    assert restored.latest_sample("supply:apxUSD").value == 110.0
+    change = restored.window_change(
+        "supply:apxUSD",
+        current=120.0,
+        now=now,
+        window_minutes=30,
+    )
+    assert change is not None
+    assert change.baseline == 100.0
