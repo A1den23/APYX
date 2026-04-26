@@ -6,7 +6,7 @@ from collections.abc import Callable, Coroutine
 from telegram import Bot, Update
 
 from alert.engine import AlertEvent
-from errors import safe_error_message
+from app.errors import safe_error_message
 
 POLL_INTERVAL = 2
 POLL_TIMEOUT = 10

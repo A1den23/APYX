@@ -68,16 +68,23 @@ docker compose logs -f
 ## 项目结构
 
 ```
-main.py           入口，调度器 + 定时任务
-config.py         配置加载（config.yaml + .env）
+main.py           CLI 入口
 config.yaml       监控参数配置
-health.py         运行状态追踪
-history.py        滚动指标历史记录
-status.py         /status 和 /health 消息生成
-thresholds.py     /thresholds 阈值说明生成
+app/
+  config.py       配置加载（config.yaml + .env）
+  service.py      服务启动、调度器、生命周期
+  jobs.py         定时监控任务编排
+  security_scan.py 链上安全事件扫描编排
+  runtime_state.py 运行状态持久化
+  history.py      滚动指标历史记录
+  status_cache.py /status 最近快照缓存
 alert/
   engine.py       告警引擎（触发 / 冷却 / 恢复）
   telegram.py     Telegram 发送 + 命令监听
+commands/
+  health.py       运行状态追踪
+  status.py       /status 和 /health 消息生成
+  thresholds.py   /thresholds 阈值说明生成
 monitors/
   peg.py          锚定价格
   supply.py       链上供应量

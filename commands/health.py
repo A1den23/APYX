@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from threading import Lock
 
-from errors import safe_error_message
+from app.errors import safe_error_message
 
 
 @dataclass

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from config import load_app_config, load_env_config
+from app.config import load_app_config, load_env_config
 
 
 def write_config(tmp_path: Path) -> Path:

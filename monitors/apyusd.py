@@ -6,7 +6,7 @@ from datetime import datetime
 from web3 import Web3
 
 from alert.engine import AlertEngine, AlertEvent
-from history import RollingMetricHistory
+from app.history import RollingMetricHistory
 from monitors.change import evaluate_dual_change, exceeds_threshold
 
 

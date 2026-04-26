@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from alert.engine import AlertEngine
-from history import RollingMetricHistory
+from app.history import RollingMetricHistory
 from monitors import apyusd as apyusd_module
 from monitors.apyusd import (
     evaluate_supply_asset_backing,

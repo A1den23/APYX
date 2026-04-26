@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 
 from alert.engine import AlertEngine, AlertEvent
 from commands.health import HealthTracker
-from jobs import send_events
+from app.jobs import send_events
 
 
 class FailingSender:

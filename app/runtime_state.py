@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from alert.engine import AlertEngine
-from history import RollingMetricHistory
+from app.history import RollingMetricHistory
 from monitors.security_events import LogScanState, RecentSecurityEventCache
 
 

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from alert.engine import AlertEngine
-from history import RollingMetricHistory
+from app.history import RollingMetricHistory
 from monitors.supply import evaluate_supply
 
 

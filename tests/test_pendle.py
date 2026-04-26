@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from alert.engine import AlertEngine
-from history import RollingMetricHistory
+from app.history import RollingMetricHistory
 from monitors.pendle import PendleMarketSnapshot, evaluate_pendle_market, parse_pendle_market
 
 

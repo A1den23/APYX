@@ -8,7 +8,7 @@ from typing import Any
 from web3 import Web3
 
 from alert.engine import AlertEngine, AlertEvent
-from config import SupplyToken
+from app.config import SupplyToken
 
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 TRANSFER_TOPIC = Web3.keccak(text="Transfer(address,address,uint256)").hex()

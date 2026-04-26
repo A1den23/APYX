@@ -7,17 +7,17 @@ from aiohttp import ClientSession
 from web3 import Web3
 
 from alert.engine import AlertEngine
-from config import AppConfig, EnvConfig
-from errors import safe_error_message
+from app.config import AppConfig, EnvConfig
+from app.errors import safe_error_message
 from .health import HealthTracker
-from history import RollingMetricHistory
+from app.history import RollingMetricHistory
 from monitors.peg import fetch_peg_price
 from monitors.pendle import fetch_pendle_market
 from monitors.strc_price import fetch_strc_price
 from monitors.supply import fetch_total_supply_async
 from monitors.apyusd import fetch_price_apxusd_async, fetch_total_assets_async
 from monitors.solvency import fetch_solvency_snapshot
-from status_cache import StatusCache
+from app.status_cache import StatusCache
 
 
 def _html_error(error: Exception) -> str:

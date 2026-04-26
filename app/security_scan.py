@@ -6,7 +6,7 @@ from datetime import datetime
 from web3 import Web3
 
 from alert.engine import AlertEngine, AlertEvent
-from config import AppConfig
+from app.config import AppConfig
 from monitors.security_events import (
     PRIVILEGED_EVENT_TOPICS,
     TRANSFER_TOPIC,

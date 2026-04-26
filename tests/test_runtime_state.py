@@ -1,9 +1,9 @@
 from datetime import datetime, timedelta, timezone
 
 from alert.engine import AlertEngine
-from history import RollingMetricHistory
+from app.history import RollingMetricHistory
 from monitors.security_events import LogScanState, RecentSecurityEventCache
-from runtime_state import RuntimeStateStore, RuntimeState
+from app.runtime_state import RuntimeStateStore, RuntimeState
 
 
 def test_runtime_state_store_round_trips_monitor_state(tmp_path) -> None:

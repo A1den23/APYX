@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from alert.engine import AlertEngine, AlertEvent
-from config import SupplyToken
+from app.config import SupplyToken
 from monitors.security_events import (
     PRIVILEGED_EVENT_TOPICS,
     TRANSFER_TOPIC,

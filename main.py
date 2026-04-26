@@ -3,9 +3,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 
-from jobs import run_five_minute_checks, run_one_minute_checks, send_events
-from security_scan import _security_contract_names, run_security_event_checks
-from service import _register_monitors, run_service, send_lifecycle_notification
+from app.jobs import run_five_minute_checks, run_one_minute_checks, send_events
+from app.security_scan import _security_contract_names, run_security_event_checks
+from app.service import _register_monitors, run_service, send_lifecycle_notification
 
 
 def parse_args() -> argparse.Namespace:

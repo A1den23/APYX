@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from history import RollingMetricHistory, percent_change
+from app.history import RollingMetricHistory, percent_change
 
 
 def test_percent_change_returns_relative_delta() -> None:

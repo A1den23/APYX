@@ -6,7 +6,7 @@ from datetime import datetime
 from aiohttp import ClientSession
 
 from alert.engine import AlertEngine, AlertEvent
-from history import RollingMetricHistory
+from app.history import RollingMetricHistory
 
 
 @dataclass(frozen=True)

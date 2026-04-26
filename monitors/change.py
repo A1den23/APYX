@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from math import isclose
 
-from history import MetricChange
+from app.history import MetricChange
 
 
 @dataclass(frozen=True)

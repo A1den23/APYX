@@ -1,4 +1,4 @@
-from errors import safe_error_message
+from app.errors import safe_error_message
 
 
 def test_safe_error_message_redacts_query_tokens() -> None:

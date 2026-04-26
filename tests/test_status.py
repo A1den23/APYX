@@ -2,12 +2,12 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 
 from alert.engine import AlertEngine
-from config import EnvConfig, load_app_config
-from history import RollingMetricHistory
+from app.config import EnvConfig, load_app_config
+from app.history import RollingMetricHistory
 from monitors.pendle import PendleMarketSnapshot
 from monitors.solvency import AccountableSolvencySnapshot
 from commands.status import build_status_message
-from status_cache import StatusCache
+from app.status_cache import StatusCache
 
 
 def test_status_uses_compact_metric_labels(monkeypatch) -> None:

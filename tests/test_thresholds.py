@@ -1,4 +1,4 @@
-from config import load_app_config
+from app.config import load_app_config
 from commands.thresholds import build_thresholds_message
 
 

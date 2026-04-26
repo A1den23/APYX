@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from config import AppConfig
+from app.config import AppConfig
 
 
 def build_thresholds_message(settings: AppConfig) -> str:
