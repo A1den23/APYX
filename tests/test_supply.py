@@ -23,11 +23,11 @@ def test_evaluate_supply_alerts_on_previous_sample_change() -> None:
     )
 
     assert event is not None
-    assert event.title == "apyUSD Supply Change"
-    assert "Current supply: 1,110,000.00" in event.body
-    assert "1m change: +11.00%" in event.body
-    assert "1m absolute change: +110,000.00" in event.body
-    assert "30m change: N/A" in event.body
+    assert event.title == "apyUSD 供应量变化异常"
+    assert "当前供应量: 1,110,000.00" in event.body
+    assert "1m 变化: +11.00%" in event.body
+    assert "1m 绝对变化: +110,000.00" in event.body
+    assert "30m 变化: 暂无" in event.body
 
 
 def test_evaluate_supply_alerts_on_absolute_change() -> None:
@@ -48,9 +48,9 @@ def test_evaluate_supply_alerts_on_absolute_change() -> None:
     )
 
     assert event is not None
-    assert event.title == "apxUSD Supply Change"
-    assert "1m change: +3.08%" in event.body
-    assert "1m absolute change: +6,000,000.00" in event.body
+    assert event.title == "apxUSD 供应量变化异常"
+    assert "1m 变化: +3.08%" in event.body
+    assert "1m 绝对变化: +6,000,000.00" in event.body
 
 
 def test_evaluate_supply_alerts_on_window_change() -> None:
@@ -72,10 +72,10 @@ def test_evaluate_supply_alerts_on_window_change() -> None:
     )
 
     assert event is not None
-    assert event.title == "apxUSD Supply Change"
-    assert "1m change: +0.84%" in event.body
-    assert "30m change: +20.00%" in event.body
-    assert "30m absolute change: +20,000,000.00" in event.body
+    assert event.title == "apxUSD 供应量变化异常"
+    assert "1m 变化: +0.84%" in event.body
+    assert "30m 变化: +20.00%" in event.body
+    assert "30m 绝对变化: +20,000,000.00" in event.body
 
 
 def test_evaluate_supply_does_not_alert_without_previous_sample() -> None:
@@ -146,4 +146,4 @@ def test_evaluate_supply_sends_recovery_after_active_alert() -> None:
 
     assert event is not None
     assert event.kind == "RECOVERY"
-    assert event.title == "apyUSD Supply Normal"
+    assert event.title == "apyUSD 供应量恢复正常"

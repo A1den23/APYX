@@ -38,13 +38,13 @@ def evaluate_peg_price(
     deviation = price - 1.0
     decimal_deviation = Decimal(str(price)) - Decimal("1.0")
     breached = abs(decimal_deviation) > Decimal(str(threshold_pct))
-    body = f"Price: ${price:.4f}\nDeviation: {deviation:+.2%}"
+    body = f"价格: ${price:.4f}\n偏离: {deviation:+.2%}"
     return engine.evaluate(
         metric_key=f"peg:{token_name}",
         breached=breached,
-        alert_title=f"{token_name} Peg Deviation",
+        alert_title=f"{token_name} 脱锚预警",
         alert_body=body,
-        recovery_title=f"{token_name} Peg Normal",
+        recovery_title=f"{token_name} 脱锚恢复正常",
         recovery_body=body,
         now=now,
     )

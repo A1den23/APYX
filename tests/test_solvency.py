@@ -58,9 +58,9 @@ def test_evaluate_solvency_alerts_below_warning_threshold() -> None:
 
     assert event is not None
     assert event.metric_key == "solvency:accountable"
-    assert event.title == "APYX Solvency Warning"
-    assert "Collateralization: 100.40%" in event.body
-    assert "Warning threshold: 100.50%" in event.body
+    assert event.title == "APYX 偿付率预警"
+    assert "偿付率: 100.40%" in event.body
+    assert "预警阈值: 100.50%" in event.body
 
 
 def test_evaluate_solvency_alerts_when_reserves_below_supply() -> None:
@@ -85,8 +85,8 @@ def test_evaluate_solvency_alerts_when_reserves_below_supply() -> None:
     )
 
     assert event is not None
-    assert event.title == "APYX Solvency Critical"
-    assert "Reserves are below supply" in event.body
+    assert event.title == "APYX 偿付率紧急告警"
+    assert "总储备低于总供应" in event.body
 
 
 def test_evaluate_solvency_alerts_on_stale_data() -> None:
@@ -111,8 +111,8 @@ def test_evaluate_solvency_alerts_on_stale_data() -> None:
     )
 
     assert event is not None
-    assert event.title == "APYX Solvency Data Stale"
-    assert "Data age: 180.0 minutes" in event.body
+    assert event.title == "APYX 偿付数据过旧"
+    assert "数据时延: 180.0 分钟" in event.body
 
 
 def test_evaluate_solvency_recovers_after_alert() -> None:
@@ -155,4 +155,4 @@ def test_evaluate_solvency_recovers_after_alert() -> None:
     )
 
     assert event is not None
-    assert event.title == "APYX Solvency Normal"
+    assert event.title == "APYX 偿付率恢复正常"

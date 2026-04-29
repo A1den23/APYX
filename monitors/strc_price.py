@@ -21,14 +21,14 @@ def evaluate_strc_price(*, price: float, threshold: float, engine: AlertEngine, 
     breached = price < threshold
     distance = max(100.0 - price, 0.0)
     drop_pct = distance / 100.0
-    body = f"Current price: ${price:.2f}\nDrop from par: {drop_pct:.2%}\nDistance from par: ${distance:.2f}"
-    recovery_body = f"Current price: ${price:.2f}\nDrop from par: {drop_pct:.2%}\nDistance from par: ${distance:.2f}"
+    body = f"当前价格: ${price:.2f}\n相对面值跌幅: {drop_pct:.2%}\n距离面值: ${distance:.2f}"
+    recovery_body = f"当前价格: ${price:.2f}\n相对面值跌幅: {drop_pct:.2%}\n距离面值: ${distance:.2f}"
     return engine.evaluate(
         metric_key="strc:price",
         breached=breached,
-        alert_title="STRC Price Below Threshold",
+        alert_title="STRC 价格跌破阈值",
         alert_body=body,
-        recovery_title="STRC Price Recovered",
+        recovery_title="STRC 价格恢复正常",
         recovery_body=recovery_body,
         now=now,
     )

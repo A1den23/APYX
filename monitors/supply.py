@@ -66,15 +66,15 @@ def evaluate_supply(
         window_label=f"{window_minutes}m",
     )
     body = (
-        f"Current supply: {supply:,.2f}\n"
+        f"当前供应量: {supply:,.2f}\n"
         + "\n".join(check.lines)
     )
     return engine.evaluate(
         metric_key=key,
         breached=check.breached,
-        alert_title=f"{token_name} Supply Change",
+        alert_title=f"{token_name} 供应量变化异常",
         alert_body=body,
-        recovery_title=f"{token_name} Supply Normal",
+        recovery_title=f"{token_name} 供应量恢复正常",
         recovery_body=body,
         now=now,
     )

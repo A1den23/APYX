@@ -4,6 +4,9 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 
+BEIJING_TIMEZONE = timezone(timedelta(hours=8))
+
+
 @dataclass(frozen=True)
 class AlertEvent:
     kind: str
@@ -14,8 +17,11 @@ class AlertEvent:
     previous_state: "AlertState | None" = None
 
     def telegram_text(self) -> str:
-        stamp = self.timestamp.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-        return f"[APYX {self.kind}] {self.title}\n{self.body}\nTime: {stamp}"
+        stamp = self.timestamp.astimezone(BEIJING_TIMEZONE).strftime(
+            "%Y-%m-%d %H:%M 北京时间"
+        )
+        kind_label = {"ALERT": "告警", "RECOVERY": "恢复"}.get(self.kind, self.kind)
+        return f"[APYX {kind_label}] {self.title}\n{self.body}\n时间: {stamp}"
 
 
 @dataclass

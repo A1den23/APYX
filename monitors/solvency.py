@@ -81,17 +81,17 @@ def evaluate_solvency(
 
     reasons: list[str] = []
     if snapshot.total_reserves < snapshot.total_supply or snapshot.net < 0:
-        reasons.append("Reserves are below supply")
+        reasons.append("总储备低于总供应")
     if snapshot.collateralization < critical_collateralization:
         reasons.append(
-            f"Collateralization is below critical threshold: {critical_collateralization:.2%}"
+            f"偿付率低于紧急阈值: {critical_collateralization:.2%}"
         )
     elif snapshot.collateralization < warning_collateralization:
         reasons.append(
-            f"Collateralization is below warning threshold: {warning_collateralization:.2%}"
+            f"偿付率低于预警阈值: {warning_collateralization:.2%}"
         )
     if stale:
-        reasons.append(f"Data is older than {max_data_age.total_seconds() / 60:.0f} minutes")
+        reasons.append(f"数据超过 {max_data_age.total_seconds() / 60:.0f} 分钟未更新")
 
     body = _solvency_body(
         snapshot=snapshot,
@@ -102,18 +102,18 @@ def evaluate_solvency(
     )
 
     if critical:
-        alert_title = "APYX Solvency Critical"
+        alert_title = "APYX 偿付率紧急告警"
     elif stale:
-        alert_title = "APYX Solvency Data Stale"
+        alert_title = "APYX 偿付数据过旧"
     else:
-        alert_title = "APYX Solvency Warning"
+        alert_title = "APYX 偿付率预警"
 
     return engine.evaluate(
         metric_key="solvency:accountable",
         breached=critical or stale or warning,
         alert_title=alert_title,
         alert_body=body,
-        recovery_title="APYX Solvency Normal",
+        recovery_title="APYX 偿付率恢复正常",
         recovery_body=body,
         now=now,
     )
@@ -128,14 +128,14 @@ def _solvency_body(
     reasons: list[str],
 ) -> str:
     lines = [
-        f"Collateralization: {snapshot.collateralization:.2%}",
-        f"Total reserves: ${snapshot.total_reserves:,.2f}",
-        f"Total supply: ${snapshot.total_supply:,.2f}",
-        f"Net reserves: ${snapshot.net:,.2f}",
-        f"Data age: {data_age.total_seconds() / 60:.1f} minutes",
-        f"Warning threshold: {warning_collateralization:.2%}",
-        f"Critical threshold: {critical_collateralization:.2%}",
+        f"偿付率: {snapshot.collateralization:.2%}",
+        f"总储备: ${snapshot.total_reserves:,.2f}",
+        f"总供应: ${snapshot.total_supply:,.2f}",
+        f"净储备: ${snapshot.net:,.2f}",
+        f"数据时延: {data_age.total_seconds() / 60:.1f} 分钟",
+        f"预警阈值: {warning_collateralization:.2%}",
+        f"紧急阈值: {critical_collateralization:.2%}",
     ]
     if reasons:
-        lines.append("Reasons: " + "; ".join(reasons))
+        lines.append("触发原因: " + "; ".join(reasons))
     return "\n".join(lines)

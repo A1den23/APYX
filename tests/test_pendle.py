@@ -35,6 +35,6 @@ def test_evaluate_pendle_market_alerts_on_liquidity_drop() -> None:
     )
 
     assert len(events) == 1
-    assert events[0].title == "Pendle apxUSD Liquidity Drop"
-    assert "Current liquidity: $890,000.00" in events[0].body
-    assert "30m change: -11.00%" in events[0].body
+    assert events[0].title == "Pendle apxUSD 流动性下降"
+    assert "当前流动性: $890,000.00" in events[0].body
+    assert "30m 变化: -11.00%" in events[0].body

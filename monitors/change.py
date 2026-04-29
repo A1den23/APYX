@@ -35,7 +35,7 @@ def evaluate_dual_change(
         absolute_threshold=absolute_threshold,
     )
     if window_change is None:
-        lines.append(f"{window_label} change: N/A")
+        lines.append(f"{window_label} 变化: 暂无")
     else:
         lines.append(_format_change(window_label, window_change, absolute_unit=absolute_unit))
         breached = breached or _change_breached(
@@ -67,6 +67,6 @@ def _format_change(
     absolute_change = change.current - change.baseline
     suffix = f" {absolute_unit}" if absolute_unit else ""
     return (
-        f"{label} change: {change.percent:+.2%}\n"
-        f"{label} absolute change: {absolute_change:+,.2f}{suffix}"
+        f"{label} 变化: {change.percent:+.2%}\n"
+        f"{label} 绝对变化: {absolute_change:+,.2f}{suffix}"
     )

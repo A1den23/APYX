@@ -1,6 +1,21 @@
 from datetime import datetime, timedelta, timezone
 
-from alert.engine import AlertEngine
+from alert.engine import AlertEngine, AlertEvent
+
+
+def test_alert_event_telegram_text_uses_beijing_time() -> None:
+    event = AlertEvent(
+        "ALERT",
+        "APYX 偿付率预警",
+        "偿付率: 100.49%",
+        datetime(2026, 4, 28, 18, 51, tzinfo=timezone.utc),
+    )
+
+    assert event.telegram_text() == (
+        "[APYX 告警] APYX 偿付率预警\n"
+        "偿付率: 100.49%\n"
+        "时间: 2026-04-29 02:51 北京时间"
+    )
 
 
 def test_alert_engine_deduplicates_within_cooldown() -> None:

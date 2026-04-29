@@ -108,9 +108,9 @@ def test_evaluate_token_movements_alerts_only_when_large_enough() -> None:
 
     assert len(events) == 1
     assert isinstance(events[0], AlertEvent)
-    assert events[0].title == "apxUSD Large Mint"
-    assert "Amount: 5,500,000.00 apxUSD" in events[0].body
-    assert "Tx: 0xabc" in events[0].body
+    assert events[0].title == "apxUSD 大额铸造"
+    assert "金额: 5,500,000.00 apxUSD" in events[0].body
+    assert "交易: 0xabc" in events[0].body
 
 
 def test_evaluate_privileged_logs_alerts_on_role_and_upgrade_events() -> None:
@@ -143,11 +143,11 @@ def test_evaluate_privileged_logs_alerts_on_role_and_upgrade_events() -> None:
     )
 
     assert [event.title for event in events] == [
-        "apxUSD Privileged Event",
-        "apyUSD Privileged Event",
+        "apxUSD 权限事件",
+        "apyUSD 权限事件",
     ]
-    assert "Event: RoleGranted" in events[0].body
-    assert "Event: Upgraded" in events[1].body
+    assert "事件: 角色授予 (RoleGranted)" in events[0].body
+    assert "事件: 实现升级 (Upgraded)" in events[1].body
 
 
 def test_log_scan_state_starts_from_recent_blocks_and_advances() -> None:
@@ -174,7 +174,7 @@ def test_recent_security_event_cache_keeps_status_active_for_one_hour() -> None:
     now = datetime(2026, 4, 26, 10, 0, tzinfo=timezone.utc)
     engine = AlertEngine(cooldown=timedelta(minutes=5))
     cache = RecentSecurityEventCache(hold_duration=timedelta(hours=1))
-    event = AlertEvent("ALERT", "apxUSD Privileged Event", "Event: RoleGranted", now)
+    event = AlertEvent("ALERT", "apxUSD 权限事件", "事件: 角色授予 (RoleGranted)", now)
 
     assert cache.evaluate(events=[event], engine=engine, now=now) is None
     assert "security_events" in engine.active_alerts()
@@ -186,7 +186,7 @@ def test_recent_security_event_cache_keeps_status_active_for_one_hour() -> None:
 
     assert recovery is not None
     assert recovery.kind == "RECOVERY"
-    assert recovery.title == "Security Events Normal"
+    assert recovery.title == "安全事件恢复正常"
     assert "security_events" not in engine.active_alerts()
 
 
@@ -194,12 +194,12 @@ def test_recent_security_event_cache_round_trips_last_event() -> None:
     now = datetime(2026, 4, 26, 10, 0, tzinfo=timezone.utc)
     cache = RecentSecurityEventCache(hold_duration=timedelta(hours=1))
     cache.last_event_at = now
-    cache.last_event_title = "apxUSD Privileged Event"
-    cache.last_event_body = "Event: RoleGranted"
+    cache.last_event_title = "apxUSD 权限事件"
+    cache.last_event_body = "事件: 角色授予 (RoleGranted)"
 
     restored = RecentSecurityEventCache.from_dict(cache.to_dict())
 
     assert restored.hold_duration == timedelta(hours=1)
     assert restored.last_event_at == now
-    assert restored.last_event_title == "apxUSD Privileged Event"
-    assert restored.last_event_body == "Event: RoleGranted"
+    assert restored.last_event_title == "apxUSD 权限事件"
+    assert restored.last_event_body == "事件: 角色授予 (RoleGranted)"

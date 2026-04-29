@@ -25,8 +25,8 @@ def test_runtime_state_store_round_trips_monitor_state(tmp_path) -> None:
     scan_state.mark_scanned(1_000)
     recent = RecentSecurityEventCache(hold_duration=timedelta(hours=1))
     recent.last_event_at = now
-    recent.last_event_title = "apxUSD Privileged Event"
-    recent.last_event_body = "Event: RoleGranted"
+    recent.last_event_title = "apxUSD 权限事件"
+    recent.last_event_body = "事件: 角色授予 (RoleGranted)"
 
     RuntimeStateStore(path).save(
         RuntimeState(
@@ -42,4 +42,4 @@ def test_runtime_state_store_round_trips_monitor_state(tmp_path) -> None:
     assert restored.alert_engine.active_alerts() == ["peg:apxUSD"]
     assert restored.history.latest_sample("supply:apxUSD").value == 100.0
     assert restored.security_state.last_scanned_block == 1_000
-    assert restored.recent_security_events.last_event_title == "apxUSD Privileged Event"
+    assert restored.recent_security_events.last_event_title == "apxUSD 权限事件"

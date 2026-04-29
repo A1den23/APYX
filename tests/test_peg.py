@@ -24,8 +24,8 @@ def test_evaluate_peg_price_alerts_on_deviation() -> None:
 
     assert event is not None
     assert event.kind == "ALERT"
-    assert "Price: $0.9965" in event.body
-    assert "Deviation: -0.35%" in event.body
+    assert "价格: $0.9965" in event.body
+    assert "偏离: -0.35%" in event.body
 
 
 def test_evaluate_peg_price_does_not_alert_at_exact_lower_threshold() -> None:

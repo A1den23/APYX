@@ -54,9 +54,9 @@ def evaluate_pendle_market(
             snapshot.liquidity,
             liquidity_drop_pct,
             lambda pct: pct < -liquidity_drop_pct,
-            f"Pendle {snapshot.name} Liquidity Drop",
-            f"Pendle {snapshot.name} Liquidity Recovered",
-            "Current liquidity",
+            f"Pendle {snapshot.name} 流动性下降",
+            f"Pendle {snapshot.name} 流动性恢复",
+            "当前流动性",
             "${:,.2f}",
         ),
         (
@@ -64,9 +64,9 @@ def evaluate_pendle_market(
             snapshot.implied_apy,
             apy_change_pct,
             lambda pct: abs(pct) > apy_change_pct,
-            f"Pendle {snapshot.name} PT APY Change",
-            f"Pendle {snapshot.name} PT APY Recovered",
-            "Current APY",
+            f"Pendle {snapshot.name} PT APY 变化异常",
+            f"Pendle {snapshot.name} PT APY 恢复正常",
+            "当前 APY",
             "{:.2%}",
         ),
         (
@@ -74,9 +74,9 @@ def evaluate_pendle_market(
             snapshot.pt_price,
             pt_price_change_pct,
             lambda pct: abs(pct) > pt_price_change_pct,
-            f"Pendle {snapshot.name} PT Price Change",
-            f"Pendle {snapshot.name} PT Price Recovered",
-            "Current PT price",
+            f"Pendle {snapshot.name} PT 价格变化异常",
+            f"Pendle {snapshot.name} PT 价格恢复正常",
+            "当前 PT 价格",
             "${:.4f}",
         ),
     ]
@@ -86,7 +86,7 @@ def evaluate_pendle_market(
         if change is None:
             history.record(key, value, now)
             continue
-        body = f"{label}: {value_format.format(value)}\n{window_minutes}m change: {change.percent:+.2%}"
+        body = f"{label}: {value_format.format(value)}\n{window_minutes}m 变化: {change.percent:+.2%}"
         event = engine.evaluate(
             metric_key=key,
             breached=predicate(change.percent),

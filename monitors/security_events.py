@@ -29,6 +29,16 @@ _PRIVILEGED_TOPIC_NAMES = {
     topic.lower(): signature.split("(", 1)[0]
     for signature, topic in PRIVILEGED_EVENT_TOPICS.items()
 }
+_PRIVILEGED_EVENT_LABELS = {
+    "RoleGranted": "角色授予",
+    "RoleRevoked": "角色撤销",
+    "OwnershipTransferred": "所有权转移",
+    "AdminChanged": "管理员变更",
+    "Upgraded": "实现升级",
+    "BeaconUpgraded": "Beacon 升级",
+    "Paused": "已暂停",
+    "Unpaused": "已恢复",
+}
 
 
 @dataclass
@@ -100,10 +110,10 @@ class RecentSecurityEventCache:
             engine.evaluate(
                 metric_key="security_events",
                 breached=True,
-                alert_title="Security Events Recent",
+                alert_title="最近安全事件",
                 alert_body=self._status_body(now),
-                recovery_title="Security Events Normal",
-                recovery_body="No security events in the last hour.",
+                recovery_title="安全事件恢复正常",
+                recovery_body="最近一小时内无安全事件。",
                 now=now,
             )
             return None
@@ -117,20 +127,20 @@ class RecentSecurityEventCache:
         return engine.evaluate(
             metric_key="security_events",
             breached=False,
-            alert_title="Security Events Recent",
+            alert_title="最近安全事件",
             alert_body=self._status_body(now),
-            recovery_title="Security Events Normal",
-            recovery_body="No security events in the last hour.",
+            recovery_title="安全事件恢复正常",
+            recovery_body="最近一小时内无安全事件。",
             now=now,
         )
 
     def _status_body(self, now: datetime) -> str:
         if self.last_event_at is None:
-            return "No security events in the last hour."
+            return "最近一小时内无安全事件。"
         age_minutes = (now - self.last_event_at).total_seconds() / 60
         return (
-            f"Last event: {self.last_event_title}\n"
-            f"Age: {age_minutes:.1f} minutes\n"
+            f"最近事件: {self.last_event_title}\n"
+            f"事件时延: {age_minutes:.1f} 分钟\n"
             f"{self.last_event_body}"
         )
 
@@ -243,18 +253,18 @@ def evaluate_token_movements(
         threshold = thresholds[movement.token_name]
         if movement.amount <= threshold:
             continue
-        kind_title = "Mint" if movement.kind == "mint" else "Burn"
+        kind_title = "铸造" if movement.kind == "mint" else "销毁"
         body = (
-            f"Amount: {movement.amount:,.2f} {movement.token_name}\n"
-            f"Threshold: {threshold:,.2f} {movement.token_name}\n"
-            f"Counterparty: {movement.counterparty}\n"
-            f"Block: {movement.block_number}\n"
-            f"Tx: {movement.transaction_hash}"
+            f"金额: {movement.amount:,.2f} {movement.token_name}\n"
+            f"阈值: {threshold:,.2f} {movement.token_name}\n"
+            f"对手方: {movement.counterparty}\n"
+            f"区块: {movement.block_number}\n"
+            f"交易: {movement.transaction_hash}"
         )
         events.append(
             AlertEvent(
                 "ALERT",
-                f"{movement.token_name} Large {kind_title}",
+                f"{movement.token_name} 大额{kind_title}",
                 body,
                 now,
             )
@@ -276,18 +286,19 @@ def evaluate_privileged_logs(
         event_name = _PRIVILEGED_TOPIC_NAMES.get(_hex(topics[0]).lower())
         if event_name is None:
             continue
+        event_label = _PRIVILEGED_EVENT_LABELS.get(event_name, event_name)
         address = str(log["address"]).lower()
         contract_name = contract_names.get(address, address)
         body = (
-            f"Event: {event_name}\n"
-            f"Contract: {contract_name} ({address})\n"
-            f"Block: {int(log['blockNumber'])}\n"
-            f"Tx: {_tx_hash(log)}"
+            f"事件: {event_label} ({event_name})\n"
+            f"合约: {contract_name} ({address})\n"
+            f"区块: {int(log['blockNumber'])}\n"
+            f"交易: {_tx_hash(log)}"
         )
         events.append(
             AlertEvent(
                 "ALERT",
-                f"{contract_name} Privileged Event",
+                f"{contract_name} 权限事件",
                 body,
                 now,
             )

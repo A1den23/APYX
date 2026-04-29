@@ -86,15 +86,15 @@ def evaluate_total_assets(
         window_label=f"{window_minutes}m",
     )
     body = (
-        f"Current totalAssets: {total_assets:,.2f} apxUSD\n"
+        f"当前总资产: {total_assets:,.2f} apxUSD\n"
         + "\n".join(check.lines)
     )
     return engine.evaluate(
         metric_key=key,
         breached=check.breached,
-        alert_title=f"{token_name} totalAssets Change",
+        alert_title=f"{token_name} 总资产变化异常",
         alert_body=body,
-        recovery_title=f"{token_name} totalAssets Normal",
+        recovery_title=f"{token_name} 总资产恢复正常",
         recovery_body=body,
         now=now,
     )
@@ -117,20 +117,20 @@ def evaluate_price_apxusd(
     history.record(key, price_apxusd, now)
     if latest_change is None:
         return None
-    lines = [f"1m change: {latest_change.percent:+.2%}"]
+    lines = [f"1m 变化: {latest_change.percent:+.2%}"]
     breached = exceeds_threshold(latest_change.percent, threshold_pct)
     if window_change is None:
-        lines.append(f"{window_minutes}m change: N/A")
+        lines.append(f"{window_minutes}m 变化: 暂无")
     else:
-        lines.append(f"{window_minutes}m change: {window_change.percent:+.2%}")
+        lines.append(f"{window_minutes}m 变化: {window_change.percent:+.2%}")
         breached = breached or exceeds_threshold(window_change.percent, threshold_pct)
-    body = f"Current priceAPXUSD: {price_apxusd:.4f} apxUSD\n" + "\n".join(lines)
+    body = f"当前兑 apxUSD 比率: {price_apxusd:.4f}\n" + "\n".join(lines)
     return engine.evaluate(
         metric_key=key,
         breached=breached,
-        alert_title="apyUSD priceAPXUSD Change",
+        alert_title="apyUSD 兑 apxUSD 比率异常",
         alert_body=body,
-        recovery_title="apyUSD priceAPXUSD Normal",
+        recovery_title="apyUSD 兑 apxUSD 比率恢复正常",
         recovery_body=body,
         now=now,
     )
@@ -159,18 +159,18 @@ def evaluate_supply_asset_backing(
     backing_ratio = asset_delta / required_asset_delta
     breached = backing_ratio < min_backing_ratio
     body = (
-        f"Share supply increase: {supply_delta:,.2f} {token_name}\n"
-        f"Required asset increase: {required_asset_delta:,.2f} apxUSD\n"
-        f"Actual asset increase: {asset_delta:,.2f} apxUSD\n"
-        f"Backing ratio: {backing_ratio:.2%}\n"
-        f"Minimum backing ratio: {min_backing_ratio:.2%}"
+        f"份额供应增加: {supply_delta:,.2f} {token_name}\n"
+        f"理论所需资产增加: {required_asset_delta:,.2f} apxUSD\n"
+        f"实际资产增加: {asset_delta:,.2f} apxUSD\n"
+        f"背书率: {backing_ratio:.2%}\n"
+        f"最低背书率: {min_backing_ratio:.2%}"
     )
     return engine.evaluate(
         metric_key=f"mint_backing:{token_name}",
         breached=breached,
-        alert_title=f"{token_name} Mint Backing Mismatch",
+        alert_title=f"{token_name} 铸造背书异常",
         alert_body=body,
-        recovery_title=f"{token_name} Mint Backing Normal",
+        recovery_title=f"{token_name} 铸造背书恢复正常",
         recovery_body=body,
         now=now,
     )

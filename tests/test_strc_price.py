@@ -12,9 +12,9 @@ def test_evaluate_strc_price_alerts_below_threshold() -> None:
 
     assert event is not None
     assert event.kind == "ALERT"
-    assert "Current price: $94.25" in event.body
-    assert "Drop from par: 5.75%" in event.body
-    assert "Distance from par: $5.75" in event.body
+    assert "当前价格: $94.25" in event.body
+    assert "相对面值跌幅: 5.75%" in event.body
+    assert "距离面值: $5.75" in event.body
 
 
 def test_evaluate_strc_price_recovers_at_threshold() -> None:
@@ -37,5 +37,5 @@ def test_evaluate_strc_price_recovery_above_par_has_no_negative_drop_or_distance
 
     assert event is not None
     assert event.kind == "RECOVERY"
-    assert "Drop from par: 0.00%" in event.body
-    assert "Distance from par: $0.00" in event.body
+    assert "相对面值跌幅: 0.00%" in event.body
+    assert "距离面值: $0.00" in event.body

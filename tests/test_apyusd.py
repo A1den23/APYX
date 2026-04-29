@@ -82,11 +82,11 @@ def test_evaluate_total_assets_alerts_on_previous_sample_change() -> None:
     )
 
     assert event is not None
-    assert event.title == "apyUSD totalAssets Change"
-    assert "Current totalAssets: 870,000.00 apxUSD" in event.body
-    assert "1m change: -13.00%" in event.body
-    assert "1m absolute change: -130,000.00 apxUSD" in event.body
-    assert "30m change: N/A" in event.body
+    assert event.title == "apyUSD 总资产变化异常"
+    assert "当前总资产: 870,000.00 apxUSD" in event.body
+    assert "1m 变化: -13.00%" in event.body
+    assert "1m 绝对变化: -130,000.00 apxUSD" in event.body
+    assert "30m 变化: 暂无" in event.body
 
 
 def test_evaluate_total_assets_alerts_on_absolute_change() -> None:
@@ -107,8 +107,8 @@ def test_evaluate_total_assets_alerts_on_absolute_change() -> None:
     )
 
     assert event is not None
-    assert "1m change: +7.64%" in event.body
-    assert "1m absolute change: +5,500,000.00 apxUSD" in event.body
+    assert "1m 变化: +7.64%" in event.body
+    assert "1m 绝对变化: +5,500,000.00 apxUSD" in event.body
 
 
 def test_evaluate_total_assets_alerts_on_window_change() -> None:
@@ -130,10 +130,10 @@ def test_evaluate_total_assets_alerts_on_window_change() -> None:
     )
 
     assert event is not None
-    assert event.title == "apyUSD totalAssets Change"
-    assert "1m change: +0.65%" in event.body
-    assert "30m change: +10.00%" in event.body
-    assert "30m absolute change: +7,000,000.00 apxUSD" in event.body
+    assert event.title == "apyUSD 总资产变化异常"
+    assert "1m 变化: +0.65%" in event.body
+    assert "30m 变化: +10.00%" in event.body
+    assert "30m 绝对变化: +7,000,000.00 apxUSD" in event.body
 
 
 def test_evaluate_price_apxusd_alerts_on_previous_sample_change() -> None:
@@ -152,10 +152,10 @@ def test_evaluate_price_apxusd_alerts_on_previous_sample_change() -> None:
     )
 
     assert event is not None
-    assert event.title == "apyUSD priceAPXUSD Change"
-    assert "Current priceAPXUSD: 1.3400 apxUSD" in event.body
-    assert "1m change: +11.67%" in event.body
-    assert "30m change: N/A" in event.body
+    assert event.title == "apyUSD 兑 apxUSD 比率异常"
+    assert "当前兑 apxUSD 比率: 1.3400" in event.body
+    assert "1m 变化: +11.67%" in event.body
+    assert "30m 变化: 暂无" in event.body
 
 
 def test_evaluate_price_apxusd_alerts_on_window_change() -> None:
@@ -175,9 +175,9 @@ def test_evaluate_price_apxusd_alerts_on_window_change() -> None:
     )
 
     assert event is not None
-    assert event.title == "apyUSD priceAPXUSD Change"
-    assert "1m change: +1.60%" in event.body
-    assert "30m change: +5.83%" in event.body
+    assert event.title == "apyUSD 兑 apxUSD 比率异常"
+    assert "1m 变化: +1.60%" in event.body
+    assert "30m 变化: +5.83%" in event.body
 
 
 def test_evaluate_price_apxusd_does_not_alert_without_baseline() -> None:
@@ -215,11 +215,11 @@ def test_evaluate_supply_asset_backing_alerts_on_unbacked_share_mint() -> None:
     )
 
     assert event is not None
-    assert event.title == "apyUSD Mint Backing Mismatch"
-    assert "Share supply increase: 10,000,000.00 apyUSD" in event.body
-    assert "Required asset increase: 13,500,000.00 apxUSD" in event.body
-    assert "Actual asset increase: 500,000.00 apxUSD" in event.body
-    assert "Backing ratio: 3.70%" in event.body
+    assert event.title == "apyUSD 铸造背书异常"
+    assert "份额供应增加: 10,000,000.00 apyUSD" in event.body
+    assert "理论所需资产增加: 13,500,000.00 apxUSD" in event.body
+    assert "实际资产增加: 500,000.00 apxUSD" in event.body
+    assert "背书率: 3.70%" in event.body
 
 
 def test_evaluate_supply_asset_backing_allows_collateralized_mint() -> None:
