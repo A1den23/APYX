@@ -40,7 +40,7 @@ curve:
         - "apyusd_apxusd_price"
         - "value_adjusted_imbalance"
         - "virtual_price"
-      price_deviation_pct: 0.005
+      price_deviation_pct: 0.01
       coins:
         - name: "apyUSD"
           address: "0x38EEb52F0771140d10c4E9A9a72349A329Fe8a6A"
@@ -129,7 +129,7 @@ solvency:
   max_data_age_minutes: 30
 
 alert:
-  cooldown_minutes: 5
+  cooldown_minutes: 1
 
 runtime:
   state_path: "state/runtime-state.json"

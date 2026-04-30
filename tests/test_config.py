@@ -46,7 +46,7 @@ curve:
         - "apyusd_apxusd_price"
         - "value_adjusted_imbalance"
         - "virtual_price"
-      price_deviation_pct: 0.005
+      price_deviation_pct: 0.01
       coins:
         - name: "apyUSD"
           address: "0x38EEb52F0771140d10c4E9A9a72349A329Fe8a6A"
@@ -105,7 +105,7 @@ solvency:
   critical_collateralization: 1.0
   max_data_age_minutes: 30
 alert:
-  cooldown_minutes: 5
+  cooldown_minutes: 1
 runtime:
   state_path: "/tmp/apyx-state.json"
   http_timeout_seconds: 12
@@ -136,7 +136,7 @@ def test_load_app_config_parses_thresholds_and_addresses(tmp_path: Path) -> None
         "value_adjusted_imbalance",
         "virtual_price",
     )
-    assert settings.curve.pools[1].price_deviation_pct == 0.005
+    assert settings.curve.pools[1].price_deviation_pct == 0.01
     assert settings.curve.balance_drop_pct == 0.10
     assert settings.commit.tokens[0].name == "apxUSD Commit"
     assert settings.commit.cap_usage_warning_pct == 0.90
@@ -160,7 +160,7 @@ def test_load_app_config_parses_thresholds_and_addresses(tmp_path: Path) -> None
     assert settings.solvency.warning_collateralization == 1.001
     assert settings.solvency.critical_collateralization == 1.0
     assert settings.solvency.max_data_age_minutes == 30
-    assert settings.alert.cooldown_minutes == 5
+    assert settings.alert.cooldown_minutes == 1
     assert settings.runtime.state_path == "/tmp/apyx-state.json"
     assert settings.runtime.http_timeout_seconds == 12
 
