@@ -53,6 +53,9 @@ def test_status_uses_compact_metric_labels(monkeypatch) -> None:
             interval="live",
         )
 
+    async def fake_unavailable_fetch(*args, **kwargs):
+        raise RuntimeError("not available in status unit test")
+
     monkeypatch.setattr("commands.status.fetch_strc_price", fake_fetch_strc_price)
     monkeypatch.setattr("commands.status.fetch_pendle_market", fake_fetch_pendle_market)
     monkeypatch.setattr("commands.status.fetch_peg_price", fake_fetch_peg_price)
@@ -60,6 +63,9 @@ def test_status_uses_compact_metric_labels(monkeypatch) -> None:
     monkeypatch.setattr("commands.status.fetch_total_assets_async", fake_fetch_total_assets_async)
     monkeypatch.setattr("commands.status.fetch_price_apxusd_async", fake_fetch_price_apxusd_async)
     monkeypatch.setattr("commands.status.fetch_solvency_snapshot", fake_fetch_solvency_snapshot)
+    monkeypatch.setattr("commands.status.fetch_curve_pool_snapshot_async", fake_unavailable_fetch)
+    monkeypatch.setattr("commands.status.fetch_commit_token_snapshot_async", fake_unavailable_fetch)
+    monkeypatch.setattr("commands.status.fetch_yield_distribution_snapshot_async", fake_unavailable_fetch)
 
     message, parse_mode = asyncio.run(
         build_status_message(
@@ -135,6 +141,9 @@ def test_status_marks_protocol_security_red_when_security_events_active(monkeypa
             interval="live",
         )
 
+    async def fake_unavailable_fetch(*args, **kwargs):
+        raise RuntimeError("not available in status unit test")
+
     monkeypatch.setattr("commands.status.fetch_strc_price", fake_fetch_strc_price)
     monkeypatch.setattr("commands.status.fetch_pendle_market", fake_fetch_pendle_market)
     monkeypatch.setattr("commands.status.fetch_peg_price", fake_fetch_peg_price)
@@ -142,6 +151,9 @@ def test_status_marks_protocol_security_red_when_security_events_active(monkeypa
     monkeypatch.setattr("commands.status.fetch_total_assets_async", fake_fetch_total_assets_async)
     monkeypatch.setattr("commands.status.fetch_price_apxusd_async", fake_fetch_price_apxusd_async)
     monkeypatch.setattr("commands.status.fetch_solvency_snapshot", fake_fetch_solvency_snapshot)
+    monkeypatch.setattr("commands.status.fetch_curve_pool_snapshot_async", fake_unavailable_fetch)
+    monkeypatch.setattr("commands.status.fetch_commit_token_snapshot_async", fake_unavailable_fetch)
+    monkeypatch.setattr("commands.status.fetch_yield_distribution_snapshot_async", fake_unavailable_fetch)
     engine = AlertEngine(cooldown=timedelta(minutes=5))
     engine.evaluate(
         metric_key="security_events",
@@ -229,6 +241,9 @@ def test_status_uses_cache_without_live_fetches(monkeypatch) -> None:
     monkeypatch.setattr("commands.status.fetch_total_assets_async", fail_fetch)
     monkeypatch.setattr("commands.status.fetch_price_apxusd_async", fail_fetch)
     monkeypatch.setattr("commands.status.fetch_solvency_snapshot", fail_fetch)
+    monkeypatch.setattr("commands.status.fetch_curve_pool_snapshot_async", fail_fetch)
+    monkeypatch.setattr("commands.status.fetch_commit_token_snapshot_async", fail_fetch)
+    monkeypatch.setattr("commands.status.fetch_yield_distribution_snapshot_async", fail_fetch)
 
     message, parse_mode = asyncio.run(
         build_status_message(
@@ -261,6 +276,9 @@ def test_status_cache_miss_does_not_fall_back_to_live_fetch(monkeypatch) -> None
         raise AssertionError("status should not live fetch when cache is provided")
 
     monkeypatch.setattr("commands.status.fetch_strc_price", fail_fetch)
+    monkeypatch.setattr("commands.status.fetch_curve_pool_snapshot_async", fail_fetch)
+    monkeypatch.setattr("commands.status.fetch_commit_token_snapshot_async", fail_fetch)
+    monkeypatch.setattr("commands.status.fetch_yield_distribution_snapshot_async", fail_fetch)
 
     message, parse_mode = asyncio.run(
         build_status_message(

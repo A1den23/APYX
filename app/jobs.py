@@ -18,12 +18,18 @@ from monitors.apyusd import (
     fetch_price_apxusd_async,
     fetch_total_assets_async,
 )
+from monitors.commit import evaluate_commit_token, fetch_commit_token_snapshot_async
+from monitors.curve import evaluate_curve_pool, fetch_curve_pool_snapshot_async
 from monitors.peg import evaluate_peg_price, fetch_peg_price
 from monitors.pendle import evaluate_pendle_market, fetch_pendle_market
 from monitors.security_events import LogScanState, RecentSecurityEventCache
 from monitors.solvency import evaluate_solvency, fetch_solvency_snapshot
 from monitors.strc_price import evaluate_strc_price, fetch_strc_price
 from monitors.supply import evaluate_supply, fetch_total_supply_async
+from monitors.yield_distribution import (
+    evaluate_yield_distribution,
+    fetch_yield_distribution_snapshot_async,
+)
 from app.runtime_state import RuntimeState, RuntimeStateStore
 from app.security_scan import run_security_event_checks
 from app.status_cache import StatusCache
@@ -249,6 +255,79 @@ async def run_one_minute_checks(
         except Exception as e:
             tracker.record_failure(key, str(e))
 
+    for pool in settings.curve.pools:
+        key = f"curve:{pool.name}"
+        try:
+            snapshot = await fetch_curve_pool_snapshot_async(web3, pool=pool)
+            if status_cache is not None:
+                status_cache.set(key, snapshot, now)
+            events.extend(
+                evaluate_curve_pool(
+                    snapshot=snapshot,
+                    balance_drop_pct=settings.curve.balance_drop_pct,
+                    imbalance_pct=settings.curve.imbalance_pct,
+                    virtual_price_change_pct=settings.curve.virtual_price_change_pct,
+                    price_deviation_pct=settings.curve.price_deviation_pct,
+                    window_minutes=settings.curve.window_minutes,
+                    history=history,
+                    engine=engine,
+                    now=now,
+                )
+            )
+            tracker.record_success(key)
+        except Exception as e:
+            tracker.record_failure(key, str(e))
+
+    for token in settings.commit.tokens:
+        key = f"commit:{token.name}"
+        try:
+            snapshot = await fetch_commit_token_snapshot_async(web3, token=token)
+            if status_cache is not None:
+                status_cache.set(key, snapshot, now)
+            events.extend(
+                evaluate_commit_token(
+                    snapshot=snapshot,
+                    cap_usage_warning_pct=settings.commit.cap_usage_warning_pct,
+                    assets_change_pct=settings.commit.assets_change_pct,
+                    assets_absolute_change_threshold=token.absolute_change_threshold,
+                    window_minutes=settings.commit.window_minutes,
+                    history=history,
+                    engine=engine,
+                    now=now,
+                )
+            )
+            tracker.record_success(key)
+        except Exception as e:
+            tracker.record_failure(key, str(e))
+
+    if settings.yield_distribution.rate_view is not None:
+        try:
+            snapshot = await fetch_yield_distribution_snapshot_async(
+                web3,
+                apyusd_address=settings.apyusd.token.address,
+                apxusd_address=settings.peg.token.address,
+                rate_view_address=settings.yield_distribution.rate_view.address,
+            )
+            if status_cache is not None:
+                status_cache.set("yield_distribution", snapshot, now)
+            events.extend(
+                evaluate_yield_distribution(
+                    snapshot=snapshot,
+                    apy_change_pct=settings.yield_distribution.apy_change_pct,
+                    annualized_yield_change_pct=(
+                        settings.yield_distribution.annualized_yield_change_pct
+                    ),
+                    unvested_change_pct=settings.yield_distribution.unvested_change_pct,
+                    window_minutes=settings.yield_distribution.window_minutes,
+                    history=history,
+                    engine=engine,
+                    now=now,
+                )
+            )
+            tracker.record_success("yield_distribution")
+        except Exception as e:
+            tracker.record_failure("yield_distribution", str(e))
+
     delivered = await send_events(sender, events, engine=engine, tracker=tracker)
     if delivered:
         security_state.commit_pending()
@@ -281,23 +360,32 @@ async def run_five_minute_checks(
     now = datetime.now(timezone.utc)
     events: list[AlertEvent] = []
 
-    try:
-        strc_price = await fetch_strc_price(
-            session, api_key=env.finnhub_api_key, symbol=settings.finnhub.symbol
-        )
-        if status_cache is not None:
-            status_cache.set("strc:price", strc_price, now)
-        strc_event = evaluate_strc_price(
-            price=strc_price,
-            threshold=settings.finnhub.threshold_price,
-            engine=engine,
-            now=now,
-        )
-        if strc_event is not None:
-            events.append(strc_event)
-        tracker.record_success("strc")
-    except Exception as e:
-        tracker.record_failure("strc", str(e))
+    for symbol in settings.finnhub.symbols:
+        key = f"tradfi:{symbol.symbol}"
+        try:
+            price = await fetch_strc_price(
+                session, api_key=env.finnhub_api_key, symbol=symbol.symbol
+            )
+            if status_cache is not None:
+                status_cache.set(key, price, now)
+                if symbol.symbol == settings.finnhub.symbol:
+                    status_cache.set("strc:price", price, now)
+            strc_event = evaluate_strc_price(
+                price=price,
+                threshold=symbol.threshold_price,
+                engine=engine,
+                now=now,
+                symbol=symbol.symbol,
+            )
+            if strc_event is not None:
+                events.append(strc_event)
+            tracker.record_success(key)
+            if symbol.symbol == settings.finnhub.symbol:
+                tracker.record_success("strc")
+        except Exception as e:
+            tracker.record_failure(key, str(e))
+            if symbol.symbol == settings.finnhub.symbol:
+                tracker.record_failure("strc", str(e))
 
     try:
         solvency = await fetch_solvency_snapshot(

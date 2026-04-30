@@ -114,7 +114,7 @@ def test_evaluate_token_movements_alerts_only_when_large_enough() -> None:
 
 
 def test_evaluate_privileged_logs_alerts_on_role_and_upgrade_events() -> None:
-    role_granted_topic = PRIVILEGED_EVENT_TOPICS["RoleGranted(bytes32,address,address)"]
+    role_granted_topic = PRIVILEGED_EVENT_TOPICS["RoleGranted(uint64,address,uint32,uint48,bool)"]
     upgraded_topic = PRIVILEGED_EVENT_TOPICS["Upgraded(address)"]
     logs = [
         {
@@ -148,6 +148,56 @@ def test_evaluate_privileged_logs_alerts_on_role_and_upgrade_events() -> None:
     ]
     assert "事件: 角色授予 (RoleGranted)" in events[0].body
     assert "事件: 实现升级 (Upgraded)" in events[1].body
+
+
+def test_evaluate_privileged_logs_alerts_on_access_manager_and_protocol_events() -> None:
+    scheduled_topic = PRIVILEGED_EVENT_TOPICS[
+        "OperationScheduled(bytes32,uint32,uint48,address,address,bytes)"
+    ]
+    cap_topic = PRIVILEGED_EVENT_TOPICS["SupplyCapUpdated(uint256,uint256)"]
+    vesting_topic = PRIVILEGED_EVENT_TOPICS["VestingPeriodUpdated(uint256,uint256)"]
+    logs = [
+        {
+            "address": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "topics": [scheduled_topic],
+            "transactionHash": "0xschedule",
+            "blockNumber": 125,
+            "logIndex": 0,
+        },
+        {
+            "address": "0x98A878b1Cd98131B271883B390f68D2c90674665",
+            "topics": [cap_topic],
+            "transactionHash": "0xcap",
+            "blockNumber": 126,
+            "logIndex": 1,
+        },
+        {
+            "address": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "topics": [vesting_topic],
+            "transactionHash": "0xvesting",
+            "blockNumber": 127,
+            "logIndex": 2,
+        },
+    ]
+
+    events = evaluate_privileged_logs(
+        logs,
+        contract_names={
+            "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": "AccessManager",
+            "0x98a878b1cd98131b271883b390f68d2c90674665": "apxUSD",
+            "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb": "LinearVestV0",
+        },
+        now=datetime(2026, 4, 26, tzinfo=timezone.utc),
+    )
+
+    assert [event.title for event in events] == [
+        "AccessManager 权限事件",
+        "apxUSD 权限事件",
+        "LinearVestV0 权限事件",
+    ]
+    assert "事件: 操作排队 (OperationScheduled)" in events[0].body
+    assert "事件: 供应上限更新 (SupplyCapUpdated)" in events[1].body
+    assert "事件: 归属周期更新 (VestingPeriodUpdated)" in events[2].body
 
 
 def test_log_scan_state_starts_from_recent_blocks_and_advances() -> None:

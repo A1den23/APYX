@@ -19,13 +19,95 @@ from monitors.security_events import (
     parse_token_movements,
 )
 
+DERIVED_CONTRACT_ABI = [
+    {
+        "inputs": [],
+        "name": "authority",
+        "outputs": [{"name": "", "type": "address"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "inputs": [],
+        "name": "denyList",
+        "outputs": [{"name": "", "type": "address"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "inputs": [],
+        "name": "unlockToken",
+        "outputs": [{"name": "", "type": "address"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "inputs": [],
+        "name": "vesting",
+        "outputs": [{"name": "", "type": "address"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+]
+ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
+
 
 def _security_contract_names(settings: AppConfig) -> dict[str, str]:
     names = {token.address.lower(): token.name for token in settings.supply.tokens}
     names[settings.apyusd.token.address.lower()] = settings.apyusd.token.name
     for market in settings.pendle.markets:
         names[market.address.lower()] = f"Pendle {market.name}"
+    for pool in settings.curve.pools:
+        names[pool.address.lower()] = f"Curve {pool.name}"
+    for token in settings.commit.tokens:
+        names[token.address.lower()] = token.name
+    if settings.yield_distribution.rate_view is not None:
+        rate_view = settings.yield_distribution.rate_view
+        names[rate_view.address.lower()] = rate_view.name
+    for contract in settings.security.contracts:
+        names[contract.address.lower()] = contract.name
     return names
+
+
+def _read_address_function(web3: Web3, *, address: str, function_name: str) -> str | None:
+    try:
+        contract = web3.eth.contract(
+            address=Web3.to_checksum_address(address),
+            abi=DERIVED_CONTRACT_ABI,
+        )
+        value = getattr(contract.functions, function_name)().call()
+    except Exception:
+        return None
+    if not isinstance(value, str) or value.lower() == ZERO_ADDRESS:
+        return None
+    return value.lower()
+
+
+def _derive_security_contract_names(web3: Web3, base_names: dict[str, str]) -> dict[str, str]:
+    names = dict(base_names)
+    for address, name in tuple(base_names.items()):
+        authority = _read_address_function(web3, address=address, function_name="authority")
+        if authority is not None:
+            names.setdefault(authority, f"AccessManager for {name}")
+        deny_list = _read_address_function(web3, address=address, function_name="denyList")
+        if deny_list is not None:
+            names.setdefault(deny_list, "AddressList")
+        unlock_token = _read_address_function(web3, address=address, function_name="unlockToken")
+        if unlock_token is not None:
+            names.setdefault(unlock_token, "UnlockToken")
+        vesting = _read_address_function(web3, address=address, function_name="vesting")
+        if vesting is not None:
+            names.setdefault(vesting, "LinearVestV0")
+    return names
+
+
+async def resolve_security_contract_names(
+    web3: Web3,
+    *,
+    settings: AppConfig,
+) -> dict[str, str]:
+    base_names = _security_contract_names(settings)
+    return await asyncio.to_thread(_derive_security_contract_names, web3, base_names)
 
 
 async def run_security_event_checks(
@@ -66,7 +148,7 @@ async def run_security_event_checks(
         now=now,
     )
 
-    contract_names = _security_contract_names(settings)
+    contract_names = await resolve_security_contract_names(web3, settings=settings)
     privileged_logs = await fetch_logs_async(
         web3,
         addresses=[Web3.to_checksum_address(a) for a in contract_names],

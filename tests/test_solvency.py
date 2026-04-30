@@ -38,7 +38,7 @@ def test_parse_accountable_dashboard_extracts_solvency_fields() -> None:
 def test_evaluate_solvency_alerts_below_warning_threshold() -> None:
     now = datetime(2026, 4, 26, 10, 0, tzinfo=timezone.utc)
     snapshot = AccountableSolvencySnapshot(
-        collateralization=1.004,
+        collateralization=1.0005,
         total_reserves=201_000_000.0,
         total_supply=200_200_000.0,
         net=800_000.0,
@@ -49,7 +49,7 @@ def test_evaluate_solvency_alerts_below_warning_threshold() -> None:
 
     event = evaluate_solvency(
         snapshot=snapshot,
-        warning_collateralization=1.005,
+        warning_collateralization=1.001,
         critical_collateralization=1.0,
         max_data_age=timedelta(hours=2),
         engine=AlertEngine(cooldown=timedelta(minutes=5)),
@@ -59,8 +59,8 @@ def test_evaluate_solvency_alerts_below_warning_threshold() -> None:
     assert event is not None
     assert event.metric_key == "solvency:accountable"
     assert event.title == "APYX 偿付率预警"
-    assert "偿付率: 100.40%" in event.body
-    assert "预警阈值: 100.50%" in event.body
+    assert "偿付率: 100.05%" in event.body
+    assert "预警阈值: 100.10%" in event.body
 
 
 def test_evaluate_solvency_alerts_when_reserves_below_supply() -> None:
@@ -77,7 +77,7 @@ def test_evaluate_solvency_alerts_when_reserves_below_supply() -> None:
 
     event = evaluate_solvency(
         snapshot=snapshot,
-        warning_collateralization=1.005,
+        warning_collateralization=1.001,
         critical_collateralization=1.0,
         max_data_age=timedelta(hours=2),
         engine=AlertEngine(cooldown=timedelta(minutes=5)),
@@ -103,7 +103,7 @@ def test_evaluate_solvency_alerts_on_stale_data() -> None:
 
     event = evaluate_solvency(
         snapshot=snapshot,
-        warning_collateralization=1.005,
+        warning_collateralization=1.001,
         critical_collateralization=1.0,
         max_data_age=timedelta(hours=2),
         engine=AlertEngine(cooldown=timedelta(minutes=5)),
@@ -139,7 +139,7 @@ def test_evaluate_solvency_recovers_after_alert() -> None:
 
     evaluate_solvency(
         snapshot=bad,
-        warning_collateralization=1.005,
+        warning_collateralization=1.001,
         critical_collateralization=1.0,
         max_data_age=timedelta(hours=2),
         engine=engine,
@@ -147,7 +147,7 @@ def test_evaluate_solvency_recovers_after_alert() -> None:
     )
     event = evaluate_solvency(
         snapshot=good,
-        warning_collateralization=1.005,
+        warning_collateralization=1.001,
         critical_collateralization=1.0,
         max_data_age=timedelta(hours=2),
         engine=engine,

@@ -48,15 +48,23 @@ def _register_monitors(tracker: HealthTracker, settings: AppConfig) -> None:
     for token in settings.supply.tokens:
         tracker.register(f"supply:{token.name}", 60)
     tracker.register("strc", 300)
+    for symbol in settings.finnhub.symbols:
+        tracker.register(f"tradfi:{symbol.symbol}", 300)
     tracker.register(f"total_assets:{settings.apyusd.token.name}", 60)
     tracker.register("apyusd_price_apxusd", 60)
     tracker.register(f"mint_backing:{settings.apyusd.token.name}", 60)
     tracker.register("security_events", 60)
     tracker.register("solvency:accountable", 300)
+    if settings.yield_distribution.rate_view is not None:
+        tracker.register("yield_distribution", 60)
     tracker.register("lifecycle_notifications", 0)
     tracker.register("telegram_commands", 0)
     for market in settings.pendle.markets:
         tracker.register(f"pendle:{market.name}", 60)
+    for pool in settings.curve.pools:
+        tracker.register(f"curve:{pool.name}", 60)
+    for token in settings.commit.tokens:
+        tracker.register(f"commit:{token.name}", 60)
 
 
 def _default_runtime_state(settings: AppConfig) -> RuntimeState:

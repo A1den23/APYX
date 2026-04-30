@@ -16,7 +16,10 @@ from monitors.pendle import fetch_pendle_market
 from monitors.strc_price import fetch_strc_price
 from monitors.supply import fetch_total_supply_async
 from monitors.apyusd import fetch_price_apxusd_async, fetch_total_assets_async
+from monitors.commit import fetch_commit_token_snapshot_async
+from monitors.curve import fetch_curve_pool_snapshot_async
 from monitors.solvency import fetch_solvency_snapshot
+from monitors.yield_distribution import fetch_yield_distribution_snapshot_async
 from app.status_cache import StatusCache
 
 
@@ -29,6 +32,19 @@ def _cached_status_value(status_cache: StatusCache, key: str):
     if cached is None:
         raise RuntimeError(f"No cached status value yet: {key}")
     return cached.value
+
+
+def _format_amount(value: float, suffix: str = "") -> str:
+    abs_value = abs(value)
+    if abs_value >= 1_000_000_000:
+        rendered = f"{value/1_000_000_000:.2f}B"
+    elif abs_value >= 1_000_000:
+        rendered = f"{value/1_000_000:.2f}M"
+    elif abs_value >= 1_000:
+        rendered = f"{value/1_000:.2f}K"
+    else:
+        rendered = f"{value:.2f}"
+    return f"{rendered} {suffix}".rstrip()
 
 
 async def build_status_message(
@@ -49,18 +65,23 @@ async def build_status_message(
     # ── 🌐 宏观风险 ──
     lines: list[str] = []
     keys: list[str] = []
-    try:
-        strc_price = (
-            _cached_status_value(status_cache, "strc:price")
-            if status_cache is not None
-            else await fetch_strc_price(
-                session, api_key=env.finnhub_api_key, symbol=settings.finnhub.symbol
+    for symbol in settings.finnhub.symbols:
+        key = f"tradfi:{symbol.symbol}"
+        cache_key = "strc:price" if symbol.symbol == settings.finnhub.symbol else key
+        try:
+            price = (
+                _cached_status_value(status_cache, cache_key)
+                if status_cache is not None
+                else await fetch_strc_price(
+                    session, api_key=env.finnhub_api_key, symbol=symbol.symbol
+                )
             )
-        )
-        lines.append(f"<b>STRC</b>  ${strc_price:.2f}")
-    except Exception as e:
-        lines.append(f"STRC  ERROR - {_html_error(e)}")
-    keys.append("strc:price")
+            lines.append(f"<b>{symbol.symbol}</b>  ${price:.2f}")
+        except Exception as e:
+            lines.append(f"{symbol.symbol}  ERROR - {_html_error(e)}")
+        keys.append(key)
+        if symbol.symbol == settings.finnhub.symbol:
+            keys.append("strc:price")
     section_data.append(("🌐 宏观风险", lines, keys))
 
     # ── 📈 Pendle 市场 ──
@@ -90,6 +111,150 @@ async def build_status_message(
             f"pendle_pt_price:{market.name}",
         ])
     section_data.append(("📈 Pendle 市场", lines, keys))
+
+    # ── 💧 Curve 池 ──
+    if settings.curve.pools:
+        lines = []
+        keys = []
+        for pool in settings.curve.pools:
+            try:
+                cache_key = f"curve:{pool.name}"
+                snap = (
+                    _cached_status_value(status_cache, cache_key)
+                    if status_cache is not None
+                    else await fetch_curve_pool_snapshot_async(web3, pool=pool)
+                )
+                price_part = (
+                    f" | apxUSD ${snap.apxusd_usdc_price:.4f}"
+                    if snap.apxusd_usdc_price is not None
+                    else ""
+                )
+                if snap.apyusd_apxusd_price is not None:
+                    price_part = (
+                        f" | apyUSD {snap.apyusd_apxusd_price:.4f} apxUSD"
+                    )
+                lines.append(
+                    f"<b>{pool.name}</b>  vp {snap.virtual_price:.6f}{price_part}"
+                )
+                if snap.total_value_apxusd is not None:
+                    lines.append(
+                        f"value {_format_amount(snap.total_value_apxusd, 'apxUSD')}"
+                    )
+                if snap.value_adjusted_imbalance is not None:
+                    lines.append(
+                        f"value-adjusted imbalance {snap.value_adjusted_imbalance:.2%}"
+                    )
+                balance_parts = [
+                    f"{name} {_format_amount(balance)}"
+                    for name, balance in snap.balances.items()
+                ]
+                if balance_parts:
+                    lines.append("balances " + " | ".join(balance_parts))
+            except Exception as e:
+                lines.append(f"<b>{pool.name}</b>  ERROR - {_html_error(e)}")
+            keys.extend(
+                [
+                    *(
+                        [f"curve_virtual_price:{pool.name}"]
+                        if "virtual_price" in pool.metrics
+                        else []
+                    ),
+                    *(
+                        [f"curve_imbalance:{pool.name}"]
+                        if "imbalance" in pool.metrics
+                        else []
+                    ),
+                    *(
+                        [f"curve_value_adjusted_imbalance:{pool.name}"]
+                        if "value_adjusted_imbalance" in pool.metrics
+                        else []
+                    ),
+                    *(
+                        [f"curve_price:{pool.name}"]
+                        if (
+                            "apxusd_usdc_price" in pool.metrics
+                            or "apyusd_apxusd_price" in pool.metrics
+                        )
+                        else []
+                    ),
+                    *(
+                        [f"curve_total_value:{pool.name}"]
+                        if "total_value" in pool.metrics
+                        else []
+                    ),
+                    *[
+                        f"curve_balance:{pool.name}:{coin.name}"
+                        for coin in pool.coins
+                        if "balances" in pool.metrics
+                    ],
+                ]
+            )
+        section_data.append(("💧 Curve 池", lines, keys))
+
+    # ── 🔒 Commit / Unlock ──
+    if settings.commit.tokens:
+        lines = []
+        keys = []
+        for token in settings.commit.tokens:
+            try:
+                cache_key = f"commit:{token.name}"
+                snap = (
+                    _cached_status_value(status_cache, cache_key)
+                    if status_cache is not None
+                    else await fetch_commit_token_snapshot_async(web3, token=token)
+                )
+                cap_usage = (
+                    0.0 if snap.supply_cap <= 0 else snap.total_supply / snap.supply_cap
+                )
+                lines.append(
+                    f"<b>{token.name}</b>  "
+                    f"assets {_format_amount(snap.total_assets, snap.asset)} | "
+                    f"cap {cap_usage:.1%} | unlock {snap.unlocking_delay_seconds/86400:.2f}d"
+                )
+            except Exception as e:
+                lines.append(f"<b>{token.name}</b>  ERROR - {_html_error(e)}")
+            keys.extend(
+                [
+                    f"commit_cap_usage:{token.name}",
+                    f"commit_assets:{token.name}",
+                    f"commit_unlock_delay:{token.name}",
+                ]
+            )
+        section_data.append(("🔒 Commit / Unlock", lines, keys))
+
+    # ── 🌾 收益分发 ──
+    if settings.yield_distribution.rate_view is not None:
+        lines = []
+        keys = [
+            "yield_distribution:annualized_yield",
+            "yield_distribution:apy",
+            "yield_distribution:unvested",
+        ]
+        try:
+            snap = (
+                _cached_status_value(status_cache, "yield_distribution")
+                if status_cache is not None
+                else await fetch_yield_distribution_snapshot_async(
+                    web3,
+                    apyusd_address=settings.apyusd.token.address,
+                    apxusd_address=settings.peg.token.address,
+                    rate_view_address=settings.yield_distribution.rate_view.address,
+                )
+            )
+            lines.append(
+                f"annualized yield {_format_amount(snap.annualized_yield, 'apxUSD/yr')} | "
+                f"APY {snap.apy:.2%}"
+            )
+            lines.append(
+                f"vested {_format_amount(snap.vested_amount, 'apxUSD')} | "
+                f"unvested {_format_amount(snap.unvested_amount, 'apxUSD')}"
+            )
+            lines.append(
+                f"vesting remaining {snap.vesting_period_remaining_seconds/86400:.2f}d"
+            )
+        except Exception as e:
+            lines.append(f"yield distribution ERROR - {_html_error(e)}")
+        section_data.append(("🌾 收益分发", lines, keys))
 
     # ── 🔐 协议安全 ──
     lines = []
