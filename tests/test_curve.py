@@ -111,7 +111,7 @@ def test_fetch_curve_pool_snapshot_reads_apyusd_apxusd_value_and_relative_price(
             CurveCoin(name="apxUSD", address="apx"),
         ),
         metrics=("total_value", "apyusd_apxusd_price", "virtual_price"),
-        price_deviation_pct=0.01,
+        price_deviation_pct=0.015,
     )
 
     snapshot = fetch_curve_pool_snapshot(FakeWeb3(), pool=pool)
@@ -169,11 +169,11 @@ def test_evaluate_curve_pool_alerts_on_apyusd_apxusd_value_price_and_virtual_pri
             balances={"apyUSD": 2_000_000, "apxUSD": 3_000_000},
             virtual_price=1.02,
             apxusd_usdc_price=None,
-            apyusd_apxusd_price=1.34,
+            apyusd_apxusd_price=1.33,
             apyusd_price_apxusd=1.36,
             total_value_apxusd=8_000_000,
             metrics=("total_value", "apyusd_apxusd_price", "virtual_price"),
-            price_deviation_pct=0.01,
+            price_deviation_pct=0.015,
             total_value_drop_pct=None,
         ),
         balance_drop_pct=0.10,
@@ -210,7 +210,7 @@ def test_evaluate_curve_pool_alerts_on_value_adjusted_imbalance() -> None:
             total_value_apxusd=3_720_000,
             value_adjusted_imbalance=0.4594594594594595,
             metrics=("value_adjusted_imbalance",),
-            price_deviation_pct=0.01,
+            price_deviation_pct=0.015,
             total_value_drop_pct=None,
         ),
         balance_drop_pct=0.10,

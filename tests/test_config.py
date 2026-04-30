@@ -46,7 +46,7 @@ curve:
         - "apyusd_apxusd_price"
         - "value_adjusted_imbalance"
         - "virtual_price"
-      price_deviation_pct: 0.01
+      price_deviation_pct: 0.015
       coins:
         - name: "apyUSD"
           address: "0x38EEb52F0771140d10c4E9A9a72349A329Fe8a6A"
@@ -136,7 +136,7 @@ def test_load_app_config_parses_thresholds_and_addresses(tmp_path: Path) -> None
         "value_adjusted_imbalance",
         "virtual_price",
     )
-    assert settings.curve.pools[1].price_deviation_pct == 0.01
+    assert settings.curve.pools[1].price_deviation_pct == 0.015
     assert settings.curve.balance_drop_pct == 0.10
     assert settings.commit.tokens[0].name == "apxUSD Commit"
     assert settings.commit.cap_usage_warning_pct == 0.90

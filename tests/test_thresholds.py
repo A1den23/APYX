@@ -12,7 +12,7 @@ def test_build_thresholds_message_lists_status_thresholds() -> None:
     assert "security events: 每 1min 扫描区块日志" in message
     assert "STRC price < $95.00" in message
     assert "liquidity: 30m ↓10%" in message
-    assert "apyUSD/apxUSD price: 相对 vault priceAPXUSD 偏离 > 1.00%" in message
+    assert "apyUSD/apxUSD price: 相对 vault priceAPXUSD 偏离 > 1.50%" in message
     assert "ratio < 100.1% 预警" in message
     assert "updated > 30min 预警" in message
     assert "apxUSD totalSupply: 1m/30m ±10% 或 ±5.00M" in message

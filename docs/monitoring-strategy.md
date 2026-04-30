@@ -150,7 +150,7 @@ apyUSD-apxUSD 每 1 分钟读取池内 apyUSD / apxUSD 余额、apyUSD vault `pr
 • 池子总价值按 `apyUSD balance * priceAPXUSD + apxUSD balance` 折算成 apxUSD，30 分钟下降超过 `10%` 告警
 • value-adjusted 不平衡度按 `apyUSD balance * priceAPXUSD` 和 `apxUSD balance` 比较，超过 `20%` 告警
 • virtual price 30 分钟变化超过 `1%` 告警
-• apyUSD/apxUSD Curve 报价相对 vault `priceAPXUSD` 偏离超过 `1.00%` 告警
+• apyUSD/apxUSD Curve 报价相对 vault `priceAPXUSD` 偏离超过 `1.50%` 告警
 
 该监控用于发现主池流动性被抽走、池子失衡、LP 价格异常、链上价格脱锚或 apyUSD 二级市场报价明显偏离 vault 赎回价值。
 
