@@ -10,6 +10,17 @@ class FailingBot:
         raise RuntimeError("poll failed token=secret")
 
 
+class CommandRegistryBot:
+    def __init__(self) -> None:
+        self.commands = None
+
+    async def set_my_commands(self, commands):
+        self.commands = commands
+
+    async def get_updates(self, **kwargs):
+        return []
+
+
 class FakeChat:
     id = 123
 
@@ -46,6 +57,35 @@ def test_poll_loop_records_sanitized_errors(monkeypatch) -> None:
     assert errors
     assert "token=<redacted>" in errors[0]
     assert "secret" not in errors[0]
+
+
+def test_start_commands_registers_telegram_command_suggestions() -> None:
+    sender = TelegramSender("token", "123")
+    bot = CommandRegistryBot()
+    sender._bot = bot
+
+    async def handler() -> str:
+        return "ok"
+
+    async def run() -> None:
+        await sender.start_commands(
+            status_fn=handler,
+            health_fn=handler,
+            strategy_fn=handler,
+            thresholds_fn=handler,
+            help_fn=handler,
+        )
+        await sender.stop_commands()
+
+    asyncio.run(run())
+
+    assert [(command.command, command.description) for command in bot.commands] == [
+        ("status", "查看所有监控指标当前值"),
+        ("thresholds", "查看所有预警阈值"),
+        ("health", "服务自检"),
+        ("strategy", "查看当前监控策略说明"),
+        ("help", "查看命令帮助"),
+    ]
 
 
 def test_dispatch_strategy_command_replies_with_strategy_text() -> None:

@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable, Coroutine
 
-from telegram import Bot, Update
+from telegram import Bot, BotCommand, Update
 
 from alert.engine import AlertEvent
 from app.errors import safe_error_message
@@ -11,6 +11,14 @@ from app.errors import safe_error_message
 POLL_INTERVAL = 2
 POLL_TIMEOUT = 10
 MAX_REPLY_CHARS = 3900
+
+TELEGRAM_COMMANDS = [
+    BotCommand("status", "查看所有监控指标当前值"),
+    BotCommand("thresholds", "查看所有预警阈值"),
+    BotCommand("health", "服务自检"),
+    BotCommand("strategy", "查看当前监控策略说明"),
+    BotCommand("help", "查看命令帮助"),
+]
 
 
 class TelegramSender:
@@ -48,6 +56,7 @@ class TelegramSender:
         self._thresholds_fn = thresholds_fn
         self._help_fn = help_fn
         self._error_fn = error_fn
+        await self._bot.set_my_commands(TELEGRAM_COMMANDS)
         self._poll_task = asyncio.create_task(self._poll_loop())
 
     async def _poll_loop(self) -> None:
