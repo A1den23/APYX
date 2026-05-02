@@ -130,9 +130,13 @@ async def build_status_message(
                     snap.apyusd_apxusd_price is not None
                     and snap.apyusd_price_apxusd is not None
                 ):
+                    deviation = (
+                        snap.apyusd_apxusd_price / snap.apyusd_price_apxusd - 1.0
+                    )
                     price_part = (
                         f"{snap.apyusd_apxusd_price:.4f}/"
-                        f"{snap.apyusd_price_apxusd:.4f}"
+                        f"{snap.apyusd_price_apxusd:.4f} "
+                        f"({deviation:+.2%})"
                     )
                 imbalance = (
                     f"{snap.value_adjusted_imbalance:.2%}"

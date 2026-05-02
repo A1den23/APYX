@@ -138,7 +138,10 @@ def test_status_uses_compact_metric_labels(monkeypatch) -> None:
     assert "apyUSD  liq $1.00M | APY 8.00% | PT $0.9600" in message
     assert "🌊 Curve" in message
     assert "apxUSD-USDC  depth $25.06M | price $1.0000 | vp 1.000286" in message
-    assert "apyUSD-apxUSD  value 6.89M | price 1.3552/1.3569 | imb 0.47% | vp 1.005840" in message
+    assert (
+        "apyUSD-apxUSD  value 6.89M | price 1.3552/1.3569 (-0.13%) "
+        "| imb 0.47% | vp 1.005840"
+    ) in message
     assert "🌾 Yield / Commit" in message
     assert "APY 11.93% | unvested 518.40K | vesting 20.16d" in message
     assert "Commit  apxUSD 5.73M (cap 5.7%) | LP 11.08K / 12.03K" in message
