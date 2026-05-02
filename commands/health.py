@@ -44,9 +44,19 @@ class HealthTracker:
 
     def snapshot(self) -> dict[str, MetricHealth]:
         with self._lock:
-            return dict(self._metrics)
+            return {
+                name: MetricHealth(
+                    last_success_at=m.last_success_at,
+                    last_error=m.last_error,
+                    success_count=m.success_count,
+                    fail_count=m.fail_count,
+                    interval_seconds=m.interval_seconds,
+                )
+                for name, m in self._metrics.items()
+            }
 
     def total_runs(self) -> tuple[int, int, int]:
-        total_ok = sum(m.success_count for m in self._metrics.values())
-        total_fail = sum(m.fail_count for m in self._metrics.values())
+        with self._lock:
+            total_ok = sum(m.success_count for m in self._metrics.values())
+            total_fail = sum(m.fail_count for m in self._metrics.values())
         return total_ok + total_fail, total_ok, total_fail
