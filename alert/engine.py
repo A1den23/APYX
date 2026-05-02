@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from typing import Literal
 
 
 BEIJING_TIMEZONE = timezone(timedelta(hours=8))
@@ -9,7 +10,7 @@ BEIJING_TIMEZONE = timezone(timedelta(hours=8))
 
 @dataclass(frozen=True)
 class AlertEvent:
-    kind: str
+    kind: Literal["ALERT", "RECOVERY"]
     title: str
     body: str
     timestamp: datetime
