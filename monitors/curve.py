@@ -50,6 +50,8 @@ ERC20_DECIMALS_ABI = [
     }
 ]
 
+_decimals_cache: dict[str, int] = {}
+
 
 @dataclass(frozen=True)
 class CurvePoolSnapshot:
@@ -72,11 +74,17 @@ class CurvePoolSnapshot:
 
 
 def _erc20_decimals(web3: Web3, address: str) -> int:
+    checksum = Web3.to_checksum_address(address)
+    cached = _decimals_cache.get(checksum)
+    if cached is not None:
+        return cached
     contract = web3.eth.contract(
-        address=Web3.to_checksum_address(address),
+        address=checksum,
         abi=ERC20_DECIMALS_ABI,
     )
-    return int(contract.functions.decimals().call())
+    result = int(contract.functions.decimals().call())
+    _decimals_cache[checksum] = result
+    return result
 
 
 def fetch_curve_pool_snapshot(web3: Web3, *, pool: CurvePool) -> CurvePoolSnapshot:
