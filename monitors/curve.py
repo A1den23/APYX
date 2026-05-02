@@ -374,7 +374,7 @@ def evaluate_curve_pool(
             f"阈值: {threshold:.2%}"
         )
         event = engine.evaluate(
-            metric_key=f"curve_price:{snapshot.name}",
+            metric_key=f"curve_apyusd_price:{snapshot.name}",
             breached=exceeds_threshold(deviation, threshold),
             alert_title=f"Curve {snapshot.name} apyUSD 价格偏离",
             alert_body=body,

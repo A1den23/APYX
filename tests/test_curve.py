@@ -274,3 +274,38 @@ def test_evaluate_curve_pool_alerts_on_value_adjusted_imbalance() -> None:
     assert events[0].metric_key == "curve_value_adjusted_imbalance:apyUSD-apxUSD"
     assert events[0].title == "Curve apyUSD-apxUSD value-adjusted 池子不平衡"
     assert "当前价值不平衡度: 45.95%" in events[0].body
+
+
+def test_evaluate_curve_pool_uses_distinct_keys_for_price_checks() -> None:
+    now = datetime(2026, 4, 24, 15, 0, tzinfo=timezone.utc)
+    history = RollingMetricHistory()
+    engine = AlertEngine(cooldown=timedelta(minutes=5))
+    snapshot = CurvePoolSnapshot(
+        name="test-pool",
+        balances={"apyUSD": 1_000_000.0, "apxUSD": 1_000_000.0, "USDC": 1_000_000.0},
+        virtual_price=1.0,
+        apxusd_usdc_price=0.97,
+        apyusd_apxusd_price=0.97,
+        apyusd_price_apxusd=1.0,
+        total_value_apxusd=3_000_000.0,
+        total_value_drop_pct=None,
+        price_deviation_pct=0.01,
+        metrics=("apxusd_usdc_price", "apyusd_apxusd_price"),
+    )
+    history.record("curve_price:test-pool", 1.0, now - timedelta(minutes=2))
+    history.record("curve_apyusd_price:test-pool", 1.0, now - timedelta(minutes=2))
+
+    events = evaluate_curve_pool(
+        snapshot=snapshot,
+        balance_drop_pct=0.1,
+        virtual_price_change_pct=0.01,
+        imbalance_pct=0.3,
+        price_deviation_pct=0.05,
+        window_minutes=60,
+        history=history,
+        engine=engine,
+        now=now,
+    )
+    titles = [e.title for e in events]
+    assert any("apyUSD" not in t for t in titles), f"Expected apxUSD/USDC alert, got {titles}"
+    assert any("apyUSD" in t for t in titles), f"Expected apyUSD/apxUSD alert, got {titles}"
