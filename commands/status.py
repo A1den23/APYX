@@ -23,6 +23,8 @@ from monitors.solvency import fetch_solvency_snapshot
 from monitors.yield_distribution import fetch_yield_distribution_snapshot_async
 from app.status_cache import StatusCache
 
+SECONDS_PER_DAY = 86_400
+
 
 def _html_error(error: Exception) -> str:
     return escape(safe_error_message(error))
@@ -279,7 +281,7 @@ async def build_status_message(
             yield_line = (
                 f"APY {snap.apy:.2%} | "
                 f"unvested {_format_amount(snap.unvested_amount)} | "
-                f"vesting {snap.vesting_period_remaining_seconds/86400:.2f}d"
+                f"vesting {snap.vesting_period_remaining_seconds/SECONDS_PER_DAY:.2f}d"
             )
         except Exception as e:
             yield_line = f"yield distribution ERROR - {_html_error(e)}"

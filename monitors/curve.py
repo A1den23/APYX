@@ -50,6 +50,8 @@ ERC20_DECIMALS_ABI = [
     }
 ]
 
+_decimals_cache: dict[str, int] = {}
+
 
 @dataclass(frozen=True)
 class CurvePoolSnapshot:
@@ -72,11 +74,17 @@ class CurvePoolSnapshot:
 
 
 def _erc20_decimals(web3: Web3, address: str) -> int:
+    checksum = Web3.to_checksum_address(address)
+    cached = _decimals_cache.get(checksum)
+    if cached is not None:
+        return cached
     contract = web3.eth.contract(
-        address=Web3.to_checksum_address(address),
+        address=checksum,
         abi=ERC20_DECIMALS_ABI,
     )
-    return int(contract.functions.decimals().call())
+    result = int(contract.functions.decimals().call())
+    _decimals_cache[checksum] = result
+    return result
 
 
 def fetch_curve_pool_snapshot(web3: Web3, *, pool: CurvePool) -> CurvePoolSnapshot:
@@ -374,7 +382,7 @@ def evaluate_curve_pool(
             f"阈值: {threshold:.2%}"
         )
         event = engine.evaluate(
-            metric_key=f"curve_price:{snapshot.name}",
+            metric_key=f"curve_apyusd_price:{snapshot.name}",
             breached=exceeds_threshold(deviation, threshold),
             alert_title=f"Curve {snapshot.name} apyUSD 价格偏离",
             alert_body=body,
@@ -397,7 +405,8 @@ def _evaluate_total_value(
     engine: AlertEngine,
     now: datetime,
 ) -> list[AlertEvent]:
-    assert snapshot.total_value_apxusd is not None
+    if snapshot.total_value_apxusd is None:
+        return []
     key = f"curve_total_value:{snapshot.name}"
     latest_change = history.latest_change(key, current=snapshot.total_value_apxusd)
     window_change = history.window_change(

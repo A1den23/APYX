@@ -128,7 +128,7 @@ async def run_service(*, once: bool) -> None:
 
     timeout = ClientTimeout(total=settings.runtime.http_timeout_seconds)
     async with ClientSession(timeout=timeout) as session:
-        common_one_minute_kwargs = {
+        common_kwargs = {
             "session": session,
             "web3": web3,
             "settings": settings,
@@ -138,23 +138,16 @@ async def run_service(*, once: bool) -> None:
             "tracker": tracker,
             "security_state": security_state,
             "recent_security_events": recent_security_events,
-            "token_decimals_by_address": token_decimals_by_address,
             "status_cache": status_cache,
             "state_store": state_store,
+        }
+        common_one_minute_kwargs = {
+            **common_kwargs,
+            "token_decimals_by_address": token_decimals_by_address,
         }
         common_five_minute_kwargs = {
-            "session": session,
-            "web3": web3,
-            "settings": settings,
+            **common_kwargs,
             "env": env,
-            "history": history,
-            "engine": engine,
-            "sender": sender,
-            "tracker": tracker,
-            "security_state": security_state,
-            "recent_security_events": recent_security_events,
-            "status_cache": status_cache,
-            "state_store": state_store,
         }
         if once:
             await run_one_minute_checks(**common_one_minute_kwargs)

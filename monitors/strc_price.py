@@ -29,7 +29,7 @@ def evaluate_strc_price(
     distance = max(100.0 - price, 0.0)
     drop_pct = distance / 100.0
     body = f"当前价格: ${price:.2f}\n相对面值跌幅: {drop_pct:.2%}\n距离面值: ${distance:.2f}"
-    recovery_body = f"当前价格: ${price:.2f}\n相对面值跌幅: {drop_pct:.2%}\n距离面值: ${distance:.2f}"
+    recovery_body = body
     return engine.evaluate(
         metric_key=f"tradfi:{symbol}",
         breached=breached,

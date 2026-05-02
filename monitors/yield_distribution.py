@@ -186,15 +186,19 @@ def evaluate_yield_distribution(
         ),
     ]
     for key, value, threshold, alert_title, recovery_title, label, value_format in metric_specs:
-        change = history.window_change(
+        latest_change = history.latest_change(key, current=value)
+        window_change = history.window_change(
             key,
             current=value,
             now=now,
             window_minutes=window_minutes,
         )
         history.record(key, value, now)
-        if change is None:
+        if latest_change is None:
             continue
+        change = latest_change
+        if window_change is not None and abs(window_change.percent) > abs(change.percent):
+            change = window_change
         body = (
             f"{label}: {value_format.format(value)}\n"
             f"已归属收益: {snapshot.vested_amount:,.2f} apxUSD\n"

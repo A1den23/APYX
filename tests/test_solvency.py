@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from alert.engine import AlertEngine
 from monitors.solvency import (
     AccountableSolvencySnapshot,
@@ -156,3 +158,9 @@ def test_evaluate_solvency_recovers_after_alert() -> None:
 
     assert event is not None
     assert event.title == "APYX 偿付率恢复正常"
+
+
+def test_parse_accountable_dashboard_raises_on_error_response() -> None:
+    payload = {"res": "error", "data": {}}
+    with pytest.raises(ValueError):
+        parse_accountable_dashboard(payload)

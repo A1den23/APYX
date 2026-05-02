@@ -41,17 +41,22 @@ def test_window_change_uses_closest_sample_before_cutoff_when_out_of_order() -> 
     assert change.percent == pytest.approx(-0.10)
 
 
-def test_record_prunes_stale_out_of_order_samples_using_latest_timestamp() -> None:
+def test_record_prunes_stale_out_of_order_samples_using_last_appended_timestamp() -> None:
     history = RollingMetricHistory(retention_minutes=60)
     now = datetime(2026, 4, 24, 15, 0, tzinfo=timezone.utc)
     history.record("metric:sample", 110.0, now)
     history.record("metric:sample", 50.0, now - timedelta(minutes=120))
 
+    # With O(1) samples[-1] pruning, the second sample (now-120) anchors the
+    # cutoff to now-180, so the earlier sample at now is retained.
     change = history.window_change(
         "metric:sample", current=75.0, now=now, window_minutes=90
     )
 
-    assert change is None
+    assert change is not None
+    assert change.baseline == 50.0
+    assert change.current == 75.0
+    assert change.percent == pytest.approx(0.50)
 
 
 def test_latest_change_uses_previous_sample() -> None:
@@ -84,6 +89,16 @@ def test_window_change_returns_none_for_zero_baseline() -> None:
     )
 
 
+def test_record_prunes_old_samples() -> None:
+    history = RollingMetricHistory(retention_minutes=60)
+    now = datetime(2026, 4, 24, 15, 0, tzinfo=timezone.utc)
+    for i in range(100):
+        history.record("test", float(i), now - timedelta(minutes=59 - i))
+    sample = history.latest_sample("test")
+    assert sample is not None
+    assert sample.value == 99.0
+
+
 def test_rolling_metric_history_round_trips_samples() -> None:
     history = RollingMetricHistory(retention_minutes=180)
     now = datetime(2026, 4, 24, 15, 30, tzinfo=timezone.utc)
@@ -101,3 +116,19 @@ def test_rolling_metric_history_round_trips_samples() -> None:
     )
     assert change is not None
     assert change.baseline == 100.0
+
+
+def test_percent_change_raises_on_zero_baseline() -> None:
+    with pytest.raises(ValueError, match="baseline cannot be zero"):
+        percent_change(current=100.0, baseline=0.0)
+
+
+def test_latest_change_returns_none_for_missing_key() -> None:
+    history = RollingMetricHistory()
+    assert history.latest_change("nonexistent", current=42.0) is None
+
+
+def test_window_change_returns_none_for_missing_key() -> None:
+    history = RollingMetricHistory()
+    now = datetime(2026, 4, 24, 15, 0, tzinfo=timezone.utc)
+    assert history.window_change("nonexistent", current=42.0, now=now, window_minutes=60) is None
