@@ -218,3 +218,47 @@ def test_evaluate_morpho_market_alerts_on_immediate_market_size_drop() -> None:
     assert events[0].title == "Morpho PT-apyUSD-18JUN2026-USDC Total Market Size 下降"
     assert "1m 变化: -13.04%" in events[0].body
     assert "30m 变化: 暂无" in events[0].body
+
+
+def test_evaluate_morpho_market_records_each_metric_once() -> None:
+    now = datetime(2026, 4, 24, 15, 0, tzinfo=timezone.utc)
+    history = RollingMetricHistory()
+    engine = AlertEngine(cooldown=timedelta(minutes=5))
+    snapshot = MorphoMarketSnapshot(
+        name="test",
+        total_market_size_usd=1_000_000.0,
+        total_liquidity_usd=500_000.0,
+        borrow_rate=0.05,
+        utilization=0.8,
+        oracle_address="0xoracle",
+        loan_asset_symbol="USDC",
+        collateral_asset_symbol="PT",
+        oracle_price=1.0,
+    )
+    # Seed history so latest_change is not None
+    history.record("morpho_total_market_size:test", 1_100_000.0, now - timedelta(minutes=2))
+    history.record("morpho_total_liquidity:test", 550_000.0, now - timedelta(minutes=2))
+    history.record("morpho_borrow_rate:test", 0.04, now - timedelta(minutes=2))
+    history.record("morpho_oracle_price:test", 1.01, now - timedelta(minutes=2))
+
+    evaluate_morpho_market(
+        snapshot=snapshot,
+        total_market_size_drop_pct=0.1,
+        total_liquidity_drop_pct=0.1,
+        borrow_rate_change_pct=0.2,
+        oracle_price_change_pct=0.05,
+        window_minutes=10,
+        history=history,
+        engine=engine,
+        now=now,
+    )
+
+    # Each metric key should have exactly 2 samples: seed + 1 record
+    for key in [
+        "morpho_total_market_size:test",
+        "morpho_total_liquidity:test",
+        "morpho_borrow_rate:test",
+        "morpho_oracle_price:test",
+    ]:
+        samples = list(history._samples[key])
+        assert len(samples) == 2, f"{key} has {len(samples)} samples, expected 2"

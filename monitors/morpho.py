@@ -238,7 +238,6 @@ def evaluate_morpho_market(
             recovery_body=body,
             now=now,
         )
-        history.record(key, value, now)
         if event is not None:
             events.append(event)
     return events
