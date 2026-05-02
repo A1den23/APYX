@@ -118,7 +118,7 @@ async def run_one_minute_checks(
             events.append(peg_event)
         tracker.record_success("peg")
     except Exception as e:
-        tracker.record_failure("peg", str(e))
+        tracker.record_failure("peg", safe_error_message(e))
 
     for token in settings.supply.tokens:
         key = f"supply:{token.name}"
@@ -146,7 +146,7 @@ async def run_one_minute_checks(
                 events.append(supply_event)
             tracker.record_success(key)
         except Exception as e:
-            tracker.record_failure(key, str(e))
+            tracker.record_failure(key, safe_error_message(e))
 
     key = f"total_assets:{settings.apyusd.token.name}"
     try:
@@ -172,7 +172,7 @@ async def run_one_minute_checks(
             events.append(total_assets_event)
         tracker.record_success(key)
     except Exception as e:
-        tracker.record_failure(key, str(e))
+        tracker.record_failure(key, safe_error_message(e))
 
     try:
         price_apxusd = await fetch_price_apxusd_async(
@@ -213,8 +213,8 @@ async def run_one_minute_checks(
         tracker.record_success(f"mint_backing:{settings.apyusd.token.name}")
         tracker.record_success("apyusd_price_apxusd")
     except Exception as e:
-        tracker.record_failure("apyusd_price_apxusd", str(e))
-        tracker.record_failure(f"mint_backing:{settings.apyusd.token.name}", str(e))
+        tracker.record_failure("apyusd_price_apxusd", safe_error_message(e))
+        tracker.record_failure(f"mint_backing:{settings.apyusd.token.name}", safe_error_message(e))
 
     try:
         events.extend(
@@ -230,7 +230,7 @@ async def run_one_minute_checks(
         )
         tracker.record_success("security_events")
     except Exception as e:
-        tracker.record_failure("security_events", str(e))
+        tracker.record_failure("security_events", safe_error_message(e))
 
     for market in settings.pendle.markets:
         key = f"pendle:{market.name}"
@@ -254,7 +254,7 @@ async def run_one_minute_checks(
             )
             tracker.record_success(key)
         except Exception as e:
-            tracker.record_failure(key, str(e))
+            tracker.record_failure(key, safe_error_message(e))
 
     for market in settings.morpho.markets:
         key = f"morpho:{market.name}"
@@ -281,7 +281,7 @@ async def run_one_minute_checks(
             )
             tracker.record_success(key)
         except Exception as e:
-            tracker.record_failure(key, str(e))
+            tracker.record_failure(key, safe_error_message(e))
 
     for pool in settings.curve.pools:
         key = f"curve:{pool.name}"
@@ -304,7 +304,7 @@ async def run_one_minute_checks(
             )
             tracker.record_success(key)
         except Exception as e:
-            tracker.record_failure(key, str(e))
+            tracker.record_failure(key, safe_error_message(e))
 
     for token in settings.commit.tokens:
         key = f"commit:{token.name}"
@@ -326,7 +326,7 @@ async def run_one_minute_checks(
             )
             tracker.record_success(key)
         except Exception as e:
-            tracker.record_failure(key, str(e))
+            tracker.record_failure(key, safe_error_message(e))
 
     if settings.yield_distribution.rate_view is not None:
         try:
@@ -354,7 +354,7 @@ async def run_one_minute_checks(
             )
             tracker.record_success("yield_distribution")
         except Exception as e:
-            tracker.record_failure("yield_distribution", str(e))
+            tracker.record_failure("yield_distribution", safe_error_message(e))
 
     delivered = await send_events(sender, events, engine=engine, tracker=tracker)
     if delivered:
@@ -411,9 +411,9 @@ async def run_five_minute_checks(
             if symbol.symbol == settings.finnhub.symbol:
                 tracker.record_success("strc")
         except Exception as e:
-            tracker.record_failure(key, str(e))
+            tracker.record_failure(key, safe_error_message(e))
             if symbol.symbol == settings.finnhub.symbol:
-                tracker.record_failure("strc", str(e))
+                tracker.record_failure("strc", safe_error_message(e))
 
     try:
         solvency = await fetch_solvency_snapshot(
@@ -433,7 +433,7 @@ async def run_five_minute_checks(
             events.append(solvency_event)
         tracker.record_success("solvency:accountable")
     except Exception as e:
-        tracker.record_failure("solvency:accountable", str(e))
+        tracker.record_failure("solvency:accountable", safe_error_message(e))
 
     await send_events(sender, events, engine=engine, tracker=tracker)
     if state_store is not None:
