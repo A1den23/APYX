@@ -76,7 +76,8 @@ def _read_address_function(web3: Web3, *, address: str, function_name: str) -> s
             abi=DERIVED_CONTRACT_ABI,
         )
         value = getattr(contract.functions, function_name)().call()
-    except Exception:
+    except Exception as e:
+        print(f"security_scan: _read_address_function({address}, {function_name}) failed: {e}", flush=True)
         return None
     if not isinstance(value, str) or value.lower() == ZERO_ADDRESS:
         return None
