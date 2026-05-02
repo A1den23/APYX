@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from decimal import Decimal
 
 from aiohttp import ClientSession
 
@@ -36,8 +35,7 @@ def evaluate_peg_price(
     now: datetime,
 ) -> AlertEvent | None:
     deviation = price - 1.0
-    decimal_deviation = Decimal(str(price)) - Decimal("1.0")
-    breached = abs(decimal_deviation) > Decimal(str(threshold_pct))
+    breached = abs(deviation) > threshold_pct
     body = f"价格: ${price:.4f}\n偏离: {deviation:+.2%}"
     return engine.evaluate(
         metric_key=f"peg:{token_name}",
