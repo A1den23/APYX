@@ -110,6 +110,9 @@ class TelegramSender:
         elif command == "/help" and self._help_fn:
             msg = await self._help_fn()
             await self._reply_text(update, msg)
+        elif self._help_fn:
+            msg = await self._help_fn()
+            await self._reply_text(update, msg)
 
     async def _reply_text(
         self,
