@@ -92,6 +92,7 @@ class CurveConfig:
     virtual_price_change_pct: float
     price_deviation_pct: float
     window_minutes: int
+    total_value_drop_pct: float | None = None
 
 
 @dataclass(frozen=True)
@@ -268,6 +269,11 @@ def _load_curve_config(data: dict) -> CurveConfig:
         virtual_price_change_pct=float(data.get("virtual_price_change_pct", 0.01)),
         price_deviation_pct=float(data.get("price_deviation_pct", 0.003)),
         window_minutes=int(data.get("window_minutes", 30)),
+        total_value_drop_pct=(
+            float(data["total_value_drop_pct"])
+            if "total_value_drop_pct" in data
+            else None
+        ),
     )
 
 

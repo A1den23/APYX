@@ -82,7 +82,7 @@ def build_thresholds_message(settings: AppConfig) -> str:
             (
                 "  total value: "
                 f"1m/{settings.curve.window_minutes}m "
-                f"↓{settings.curve.balance_drop_pct:.0%}"
+                f"↓{(settings.curve.total_value_drop_pct or settings.curve.balance_drop_pct):.0%}"
             ),
             f"  imbalance > {settings.curve.imbalance_pct:.0%}",
             f"  value-adjusted imbalance > {settings.curve.imbalance_pct:.0%}",

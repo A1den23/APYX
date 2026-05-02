@@ -19,3 +19,12 @@ def test_build_thresholds_message_lists_status_thresholds() -> None:
     assert "apxUSD totalSupply: 1m/30m ±10% 或 ±5.00M" in message
     assert "apyUSD totalSupply: 1m/30m ±10% 或 ±2.00M shares" in message
     assert "mint backing: share增量 > 0.10M 且背书 < 99%" in message
+
+
+def test_thresholds_message_uses_total_value_drop_pct_for_curve_total_value() -> None:
+    from app.config import load_app_config
+    settings = load_app_config()
+    msg = build_thresholds_message(settings)
+    if settings.curve.total_value_drop_pct is not None:
+        expected = f"↓{settings.curve.total_value_drop_pct:.0%}"
+        assert expected in msg
