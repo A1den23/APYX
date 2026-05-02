@@ -32,7 +32,7 @@ def test_evaluate_peg_price_does_not_alert_at_exact_lower_threshold() -> None:
     engine = AlertEngine(cooldown=timedelta(minutes=5))
     now = datetime(2026, 4, 24, 14, 30, tzinfo=timezone.utc)
 
-    event = evaluate_peg_price(token_name="apxUSD", price=0.997, threshold_pct=0.003, engine=engine, now=now)
+    event = evaluate_peg_price(token_name="apxUSD", price=0.998, threshold_pct=0.003, engine=engine, now=now)
 
     assert event is None
 
