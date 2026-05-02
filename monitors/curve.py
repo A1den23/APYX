@@ -397,7 +397,8 @@ def _evaluate_total_value(
     engine: AlertEngine,
     now: datetime,
 ) -> list[AlertEvent]:
-    assert snapshot.total_value_apxusd is not None
+    if snapshot.total_value_apxusd is None:
+        return []
     key = f"curve_total_value:{snapshot.name}"
     latest_change = history.latest_change(key, current=snapshot.total_value_apxusd)
     window_change = history.window_change(
