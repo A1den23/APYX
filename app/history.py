@@ -32,8 +32,7 @@ class RollingMetricHistory:
     def record(self, key: str, value: float, timestamp: datetime) -> None:
         samples = self._samples[key]
         samples.append(MetricSample(value=value, timestamp=timestamp))
-        latest_timestamp = max(sample.timestamp for sample in samples)
-        cutoff = latest_timestamp - self._retention
+        cutoff = samples[-1].timestamp - self._retention
         self._samples[key] = deque(
             sample for sample in samples if sample.timestamp >= cutoff
         )
