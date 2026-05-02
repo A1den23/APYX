@@ -200,7 +200,7 @@ class RecentSecurityEventCache:
                 alert_title="最近安全事件",
                 alert_body=self._status_body(now),
                 recovery_title="安全事件恢复正常",
-                recovery_body="最近一小时内无安全事件。",
+                recovery_body=self._no_event_body(),
                 now=now,
             )
             return None
@@ -217,13 +217,22 @@ class RecentSecurityEventCache:
             alert_title="最近安全事件",
             alert_body=self._status_body(now),
             recovery_title="安全事件恢复正常",
-            recovery_body="最近一小时内无安全事件。",
+            recovery_body=self._no_event_body(),
             now=now,
         )
 
+    def _hold_label(self) -> str:
+        minutes = int(self.hold_duration.total_seconds() // 60)
+        if minutes >= 60:
+            return f"{minutes // 60}小时"
+        return f"{minutes}分钟"
+
+    def _no_event_body(self) -> str:
+        return f"最近{self._hold_label()}内无安全事件。"
+
     def _status_body(self, now: datetime) -> str:
         if self.last_event_at is None:
-            return "最近一小时内无安全事件。"
+            return self._no_event_body()
         age_minutes = (now - self.last_event_at).total_seconds() / 60
         return (
             f"最近事件: {self.last_event_title}\n"

@@ -272,3 +272,31 @@ def test_recent_security_event_cache_round_trips_last_event() -> None:
     assert restored.last_event_at == now
     assert restored.last_event_title == "apxUSD 权限事件"
     assert restored.last_event_body == "事件: 角色授予 (RoleGranted)"
+
+
+def test_recent_security_event_cache_uses_dynamic_hold_label_in_recovery_message() -> None:
+    now = datetime(2026, 4, 26, 10, 0, tzinfo=timezone.utc)
+    engine = AlertEngine(cooldown=timedelta(minutes=5))
+    cache = RecentSecurityEventCache(hold_duration=timedelta(minutes=30))
+    event = AlertEvent("ALERT", "apxUSD 权限事件", "事件: 角色授予 (RoleGranted)", now)
+
+    cache.evaluate(events=[event], engine=engine, now=now)
+
+    recovery = cache.evaluate(
+        events=[], engine=engine, now=now + timedelta(minutes=30, seconds=1)
+    )
+
+    assert recovery is not None
+    assert "30分钟" in recovery.body
+    assert "一小时" not in recovery.body
+
+
+def test_recent_security_event_cache_status_body_uses_dynamic_label_when_no_event() -> None:
+    engine = AlertEngine(cooldown=timedelta(minutes=5))
+    cache = RecentSecurityEventCache(hold_duration=timedelta(minutes=45))
+    now = datetime(2026, 4, 26, 10, 0, tzinfo=timezone.utc)
+
+    body = cache._status_body(now)
+
+    assert "45分钟" in body
+    assert "一小时" not in body
