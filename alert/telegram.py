@@ -59,6 +59,7 @@ class TelegramSender:
         self._poll_task = asyncio.create_task(self._poll_loop())
 
     async def _poll_loop(self) -> None:
+        consecutive_failures = 0
         while True:
             try:
                 updates = await self._bot.get_updates(
@@ -71,12 +72,18 @@ class TelegramSender:
                 for update in updates:
                     self._offset = update.update_id + 1
                     await self._dispatch(update)
+                consecutive_failures = 0
             except Exception as e:
+                consecutive_failures += 1
                 safe_error = safe_error_message(e)
                 if self._error_fn is not None:
                     self._error_fn(safe_error)
-                print(f"Telegram command polling failed: {safe_error}", flush=True)
-            await asyncio.sleep(POLL_INTERVAL)
+                print(
+                    f"Telegram command polling failed ({consecutive_failures}x): {safe_error}",
+                    flush=True,
+                )
+            delay = min(POLL_INTERVAL * (2 ** min(consecutive_failures, 5)), 300)
+            await asyncio.sleep(delay if consecutive_failures > 1 else POLL_INTERVAL)
 
     async def _dispatch(self, update: Update) -> None:
         if update.message is None or update.message.text is None:
