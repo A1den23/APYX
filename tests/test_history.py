@@ -116,3 +116,19 @@ def test_rolling_metric_history_round_trips_samples() -> None:
     )
     assert change is not None
     assert change.baseline == 100.0
+
+
+def test_percent_change_raises_on_zero_baseline() -> None:
+    with pytest.raises(ValueError, match="baseline cannot be zero"):
+        percent_change(current=100.0, baseline=0.0)
+
+
+def test_latest_change_returns_none_for_missing_key() -> None:
+    history = RollingMetricHistory()
+    assert history.latest_change("nonexistent", current=42.0) is None
+
+
+def test_window_change_returns_none_for_missing_key() -> None:
+    history = RollingMetricHistory()
+    now = datetime(2026, 4, 24, 15, 0, tzinfo=timezone.utc)
+    assert history.window_change("nonexistent", current=42.0, now=now, window_minutes=60) is None
