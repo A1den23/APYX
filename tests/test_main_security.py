@@ -14,6 +14,7 @@ def test_register_monitors_includes_security_checks_and_one_minute_pendle() -> N
     assert snapshot["security_events"].interval_seconds == 60
     assert snapshot["mint_backing:apyUSD"].interval_seconds == 60
     assert snapshot["pendle:apxUSD"].interval_seconds == 60
+    assert snapshot["morpho:PT-apyUSD-18JUN2026-USDC"].interval_seconds == 60
     assert snapshot["curve:apxUSD-USDC"].interval_seconds == 60
     assert snapshot["curve:apyUSD-apxUSD"].interval_seconds == 60
     assert snapshot["commit:apxUSD Commit"].interval_seconds == 60

@@ -194,6 +194,53 @@ def test_evaluate_curve_pool_alerts_on_apyusd_apxusd_value_price_and_virtual_pri
     assert "Curve apyUSD-apxUSD 池子不平衡" not in titles
 
 
+def test_evaluate_curve_pool_alerts_on_immediate_historical_metric_changes() -> None:
+    history = RollingMetricHistory()
+    engine = AlertEngine(cooldown=timedelta(minutes=5))
+    now = datetime(2026, 4, 30, 8, 0, tzinfo=timezone.utc)
+    history.record(
+        "curve_balance:apyUSD-apxUSD:apyUSD",
+        2_000_000,
+        now - timedelta(minutes=1),
+    )
+    history.record(
+        "curve_total_value:apyUSD-apxUSD",
+        10_000_000,
+        now - timedelta(minutes=1),
+    )
+    history.record(
+        "curve_virtual_price:apyUSD-apxUSD",
+        1.0,
+        now - timedelta(minutes=1),
+    )
+
+    events = evaluate_curve_pool(
+        snapshot=CurvePoolSnapshot(
+            name="apyUSD-apxUSD",
+            balances={"apyUSD": 1_700_000},
+            virtual_price=1.02,
+            apxusd_usdc_price=None,
+            total_value_apxusd=8_500_000,
+            metrics=("balances", "total_value", "virtual_price"),
+        ),
+        balance_drop_pct=0.10,
+        imbalance_pct=0.20,
+        virtual_price_change_pct=0.01,
+        price_deviation_pct=0.003,
+        window_minutes=30,
+        history=history,
+        engine=engine,
+        now=now,
+    )
+
+    titles = {event.title for event in events}
+    assert "Curve apyUSD-apxUSD apyUSD 余额下降" in titles
+    assert "Curve apyUSD-apxUSD 总价值下降" in titles
+    assert "Curve apyUSD-apxUSD virtual price 变化异常" in titles
+    assert all("1m 变化:" in event.body for event in events)
+    assert all("30m 变化: 暂无" in event.body for event in events)
+
+
 def test_evaluate_curve_pool_alerts_on_value_adjusted_imbalance() -> None:
     history = RollingMetricHistory()
     engine = AlertEngine(cooldown=timedelta(minutes=5))

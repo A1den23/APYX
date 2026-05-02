@@ -30,6 +30,16 @@ pendle:
   apy_change_pct: 0.10
   pt_price_change_pct: 0.10
   window_minutes: 30
+morpho:
+  markets:
+    - name: "PT-apyUSD-18JUN2026-USDC"
+      market_id: "0xa75bb490ecfee90c86a9d22ebc2dde42fb83478b3f18722b9fc6f5f668cab124"
+      chain_id: 1
+  total_market_size_drop_pct: 0.10
+  total_liquidity_drop_pct: 0.10
+  borrow_rate_change_pct: 0.10
+  oracle_price_change_pct: 0.02
+  window_minutes: 30
 curve:
   pools:
     - name: "apxUSD-USDC"
@@ -127,6 +137,16 @@ def test_load_app_config_parses_thresholds_and_addresses(tmp_path: Path) -> None
     assert settings.peg.threshold_pct == 0.003
     assert settings.pendle.markets[0].address == "0x50dce085af29caba28f7308bea57c4043757b491"
     assert settings.pendle.window_minutes == 30
+    assert settings.morpho.markets[0].name == "PT-apyUSD-18JUN2026-USDC"
+    assert settings.morpho.markets[0].market_id == (
+        "0xa75bb490ecfee90c86a9d22ebc2dde42fb83478b3f18722b9fc6f5f668cab124"
+    )
+    assert settings.morpho.markets[0].chain_id == 1
+    assert settings.morpho.total_market_size_drop_pct == 0.10
+    assert settings.morpho.total_liquidity_drop_pct == 0.10
+    assert settings.morpho.borrow_rate_change_pct == 0.10
+    assert settings.morpho.oracle_price_change_pct == 0.02
+    assert settings.morpho.window_minutes == 30
     assert settings.curve.pools[0].name == "apxUSD-USDC"
     assert settings.curve.pools[0].coins[1].name == "USDC"
     assert settings.curve.pools[1].name == "apyUSD-apxUSD"
@@ -171,6 +191,7 @@ def test_load_app_config_uses_immutable_collections(tmp_path: Path) -> None:
     settings = load_app_config(config_path)
 
     assert isinstance(settings.pendle.markets, tuple)
+    assert isinstance(settings.morpho.markets, tuple)
     assert isinstance(settings.supply.tokens, tuple)
     assert isinstance(settings.curve.pools, tuple)
     assert isinstance(settings.curve.pools[0].coins, tuple)

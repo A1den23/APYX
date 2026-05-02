@@ -50,6 +50,23 @@ class PendleConfig:
 
 
 @dataclass(frozen=True)
+class MorphoMarketConfig:
+    name: str
+    market_id: str
+    chain_id: int = 1
+
+
+@dataclass(frozen=True)
+class MorphoConfig:
+    markets: tuple[MorphoMarketConfig, ...]
+    total_market_size_drop_pct: float
+    total_liquidity_drop_pct: float
+    borrow_rate_change_pct: float
+    oracle_price_change_pct: float
+    window_minutes: int
+
+
+@dataclass(frozen=True)
 class CurveCoin:
     name: str
     address: str
@@ -153,6 +170,7 @@ class AppConfig:
     finnhub: FinnhubConfig
     peg: PegConfig
     pendle: PendleConfig
+    morpho: MorphoConfig
     curve: CurveConfig
     supply: SupplyConfig
     commit: CommitConfig
@@ -179,6 +197,7 @@ def load_app_config(path: str | Path = "config.yaml") -> AppConfig:
             pt_price_change_pct=float(data["pendle"]["pt_price_change_pct"]),
             window_minutes=int(data["pendle"]["window_minutes"]),
         ),
+        morpho=_load_morpho_config(data.get("morpho", {})),
         curve=_load_curve_config(data.get("curve", {})),
         supply=SupplyConfig(
             tokens=tuple(_load_supply_token(item) for item in data["supply"]["tokens"]),
@@ -248,6 +267,26 @@ def _load_curve_config(data: dict) -> CurveConfig:
         imbalance_pct=float(data.get("imbalance_pct", 0.20)),
         virtual_price_change_pct=float(data.get("virtual_price_change_pct", 0.01)),
         price_deviation_pct=float(data.get("price_deviation_pct", 0.003)),
+        window_minutes=int(data.get("window_minutes", 30)),
+    )
+
+
+def _load_morpho_config(data: dict) -> MorphoConfig:
+    return MorphoConfig(
+        markets=tuple(
+            MorphoMarketConfig(
+                name=str(item["name"]),
+                market_id=str(item["market_id"]),
+                chain_id=int(item.get("chain_id", 1)),
+            )
+            for item in data.get("markets", ())
+        ),
+        total_market_size_drop_pct=float(
+            data.get("total_market_size_drop_pct", 0.10)
+        ),
+        total_liquidity_drop_pct=float(data.get("total_liquidity_drop_pct", 0.10)),
+        borrow_rate_change_pct=float(data.get("borrow_rate_change_pct", 0.10)),
+        oracle_price_change_pct=float(data.get("oracle_price_change_pct", 0.02)),
         window_minutes=int(data.get("window_minutes", 30)),
     )
 

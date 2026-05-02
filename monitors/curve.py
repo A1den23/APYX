@@ -8,7 +8,7 @@ from web3 import Web3
 
 from alert.engine import AlertEngine, AlertEvent
 from app.config import CurvePool
-from app.history import RollingMetricHistory
+from app.history import MetricChange, RollingMetricHistory
 from monitors.change import exceeds_threshold
 
 
@@ -243,19 +243,29 @@ def evaluate_curve_pool(
     if "balances" in metrics:
         for coin_name, balance in snapshot.balances.items():
             key = f"curve_balance:{snapshot.name}:{coin_name}"
-            change = history.window_change(
+            latest_change = history.latest_change(key, current=balance)
+            window_change = history.window_change(
                 key, current=balance, now=now, window_minutes=window_minutes
             )
             history.record(key, balance, now)
-            if change is None:
+            if latest_change is None:
                 continue
+            lines = _dual_window_change_lines(
+                latest_change=latest_change,
+                window_change=window_change,
+                window_minutes=window_minutes,
+            )
             body = (
                 f"当前余额: {balance:,.2f} {coin_name}\n"
-                f"{window_minutes}m 变化: {change.percent:+.2%}"
+                + "\n".join(lines)
             )
             event = engine.evaluate(
                 metric_key=key,
-                breached=change.percent < -balance_drop_pct,
+                breached=_drop_breached(
+                    latest_change=latest_change,
+                    window_change=window_change,
+                    threshold=balance_drop_pct,
+                ),
                 alert_title=f"Curve {snapshot.name} {coin_name} 余额下降",
                 alert_body=body,
                 recovery_title=f"Curve {snapshot.name} {coin_name} 余额恢复",
@@ -389,23 +399,34 @@ def _evaluate_total_value(
 ) -> list[AlertEvent]:
     assert snapshot.total_value_apxusd is not None
     key = f"curve_total_value:{snapshot.name}"
-    change = history.window_change(
+    latest_change = history.latest_change(key, current=snapshot.total_value_apxusd)
+    window_change = history.window_change(
         key,
         current=snapshot.total_value_apxusd,
         now=now,
         window_minutes=window_minutes,
     )
     history.record(key, snapshot.total_value_apxusd, now)
-    if change is None:
+    if latest_change is None:
         return []
+    lines = _dual_window_change_lines(
+        latest_change=latest_change,
+        window_change=window_change,
+        window_minutes=window_minutes,
+    )
     body = (
         f"当前总价值: {snapshot.total_value_apxusd:,.2f} apxUSD\n"
-        f"{window_minutes}m 变化: {change.percent:+.2%}\n"
+        + "\n".join(lines)
+        + "\n"
         f"阈值: -{threshold:.2%}"
     )
     event = engine.evaluate(
         metric_key=key,
-        breached=change.percent < -threshold,
+        breached=_drop_breached(
+            latest_change=latest_change,
+            window_change=window_change,
+            threshold=threshold,
+        ),
         alert_title=f"Curve {snapshot.name} 总价值下降",
         alert_body=body,
         recovery_title=f"Curve {snapshot.name} 总价值恢复",
@@ -428,16 +449,26 @@ def _evaluate_point_metric(
     alert_title: str,
     recovery_title: str,
 ) -> list[AlertEvent]:
-    change = history.window_change(
+    latest_change = history.latest_change(key, current=value)
+    window_change = history.window_change(
         key, current=value, now=now, window_minutes=window_minutes
     )
     history.record(key, value, now)
-    if change is None:
+    if latest_change is None:
         return []
-    body = f"当前 {label}: {value:.6f}\n{window_minutes}m 变化: {change.percent:+.2%}"
+    lines = _dual_window_change_lines(
+        latest_change=latest_change,
+        window_change=window_change,
+        window_minutes=window_minutes,
+    )
+    body = f"当前 {label}: {value:.6f}\n" + "\n".join(lines)
     event = engine.evaluate(
         metric_key=key,
-        breached=exceeds_threshold(change.percent, threshold),
+        breached=_absolute_change_breached(
+            latest_change=latest_change,
+            window_change=window_change,
+            threshold=threshold,
+        ),
         alert_title=alert_title,
         alert_body=body,
         recovery_title=recovery_title,
@@ -445,6 +476,42 @@ def _evaluate_point_metric(
         now=now,
     )
     return [event] if event is not None else []
+
+
+def _dual_window_change_lines(
+    *,
+    latest_change: MetricChange,
+    window_change: MetricChange | None,
+    window_minutes: int,
+) -> list[str]:
+    lines = [f"1m 变化: {latest_change.percent:+.2%}"]
+    if window_change is None:
+        lines.append(f"{window_minutes}m 变化: 暂无")
+    else:
+        lines.append(f"{window_minutes}m 变化: {window_change.percent:+.2%}")
+    return lines
+
+
+def _drop_breached(
+    *,
+    latest_change: MetricChange,
+    window_change: MetricChange | None,
+    threshold: float,
+) -> bool:
+    return latest_change.percent < -threshold or (
+        window_change is not None and window_change.percent < -threshold
+    )
+
+
+def _absolute_change_breached(
+    *,
+    latest_change: MetricChange,
+    window_change: MetricChange | None,
+    threshold: float,
+) -> bool:
+    return exceeds_threshold(latest_change.percent, threshold) or (
+        window_change is not None and exceeds_threshold(window_change.percent, threshold)
+    )
 
 
 def _stable_pool_imbalance(balances: dict[str, float]) -> float:

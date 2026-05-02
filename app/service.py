@@ -61,6 +61,8 @@ def _register_monitors(tracker: HealthTracker, settings: AppConfig) -> None:
     tracker.register("telegram_commands", 0)
     for market in settings.pendle.markets:
         tracker.register(f"pendle:{market.name}", 60)
+    for market in settings.morpho.markets:
+        tracker.register(f"morpho:{market.name}", 60)
     for pool in settings.curve.pools:
         tracker.register(f"curve:{pool.name}", 60)
     for token in settings.commit.tokens:

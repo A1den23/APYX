@@ -20,6 +20,7 @@ from monitors.apyusd import (
 )
 from monitors.commit import evaluate_commit_token, fetch_commit_token_snapshot_async
 from monitors.curve import evaluate_curve_pool, fetch_curve_pool_snapshot_async
+from monitors.morpho import evaluate_morpho_market, fetch_morpho_market
 from monitors.peg import evaluate_peg_price, fetch_peg_price
 from monitors.pendle import evaluate_pendle_market, fetch_pendle_market
 from monitors.security_events import LogScanState, RecentSecurityEventCache
@@ -246,6 +247,33 @@ async def run_one_minute_checks(
                     apy_change_pct=settings.pendle.apy_change_pct,
                     pt_price_change_pct=settings.pendle.pt_price_change_pct,
                     window_minutes=settings.pendle.window_minutes,
+                    history=history,
+                    engine=engine,
+                    now=now,
+                )
+            )
+            tracker.record_success(key)
+        except Exception as e:
+            tracker.record_failure(key, str(e))
+
+    for market in settings.morpho.markets:
+        key = f"morpho:{market.name}"
+        try:
+            snapshot = await fetch_morpho_market(session, web3=web3, market=market)
+            if status_cache is not None:
+                status_cache.set(key, snapshot, now)
+            events.extend(
+                evaluate_morpho_market(
+                    snapshot=snapshot,
+                    total_market_size_drop_pct=(
+                        settings.morpho.total_market_size_drop_pct
+                    ),
+                    total_liquidity_drop_pct=(
+                        settings.morpho.total_liquidity_drop_pct
+                    ),
+                    borrow_rate_change_pct=settings.morpho.borrow_rate_change_pct,
+                    oracle_price_change_pct=settings.morpho.oracle_price_change_pct,
+                    window_minutes=settings.morpho.window_minutes,
                     history=history,
                     engine=engine,
                     now=now,

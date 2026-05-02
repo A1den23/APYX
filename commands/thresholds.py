@@ -33,17 +33,64 @@ def build_thresholds_message(settings: AppConfig) -> str:
             "",
             "📈 Pendle 市场",
             f"  频率: 每 1min | 窗口: {settings.pendle.window_minutes}min",
-            f"  liquidity: 30m ↓{settings.pendle.liquidity_drop_pct:.0%}",
-            f"  implied APY: 30m ±{settings.pendle.apy_change_pct:.0%}",
-            f"  PT price: 30m ±{settings.pendle.pt_price_change_pct:.0%}",
+            (
+                "  liquidity: "
+                f"1m/{settings.pendle.window_minutes}m "
+                f"↓{settings.pendle.liquidity_drop_pct:.0%}"
+            ),
+            (
+                "  implied APY: "
+                f"1m/{settings.pendle.window_minutes}m "
+                f"±{settings.pendle.apy_change_pct:.0%}"
+            ),
+            (
+                "  PT price: "
+                f"1m/{settings.pendle.window_minutes}m "
+                f"±{settings.pendle.pt_price_change_pct:.0%}"
+            ),
+            "",
+            "🦋 Morpho 市场",
+            f"  频率: 每 1min | 窗口: {settings.morpho.window_minutes}min",
+            (
+                "  Total Market Size: "
+                f"1m/{settings.morpho.window_minutes}m ↓"
+                f"{settings.morpho.total_market_size_drop_pct:.0%}"
+            ),
+            (
+                "  Total Liquidity: "
+                f"1m/{settings.morpho.window_minutes}m ↓"
+                f"{settings.morpho.total_liquidity_drop_pct:.0%}"
+            ),
+            (
+                "  borrow rate: "
+                f"1m/{settings.morpho.window_minutes}m "
+                f"±{settings.morpho.borrow_rate_change_pct:.0%}"
+            ),
+            (
+                "  oracle price: "
+                f"1m/{settings.morpho.window_minutes}m "
+                f"±{settings.morpho.oracle_price_change_pct:.0%}"
+            ),
             "",
             "💧 Curve 池",
             f"  频率: 每 1min | 窗口: {settings.curve.window_minutes}min",
-            f"  balance: 30m ↓{settings.curve.balance_drop_pct:.0%}",
-            f"  total value: 30m ↓{settings.curve.balance_drop_pct:.0%}",
+            (
+                "  balance: "
+                f"1m/{settings.curve.window_minutes}m "
+                f"↓{settings.curve.balance_drop_pct:.0%}"
+            ),
+            (
+                "  total value: "
+                f"1m/{settings.curve.window_minutes}m "
+                f"↓{settings.curve.balance_drop_pct:.0%}"
+            ),
             f"  imbalance > {settings.curve.imbalance_pct:.0%}",
             f"  value-adjusted imbalance > {settings.curve.imbalance_pct:.0%}",
-            f"  virtual price: 30m ±{settings.curve.virtual_price_change_pct:.0%}",
+            (
+                "  virtual price: "
+                f"1m/{settings.curve.window_minutes}m "
+                f"±{settings.curve.virtual_price_change_pct:.0%}"
+            ),
             f"  apxUSD/USDC price: 偏离 > {settings.curve.price_deviation_pct:.2%}",
             (
                 "  apyUSD/apxUSD price: 相对 vault priceAPXUSD 偏离 > "

@@ -82,21 +82,33 @@ def evaluate_pendle_market(
     ]
     for metric, value, _threshold, predicate, alert_title, recovery_title, label, value_format in checks:
         key = f"{metric}:{snapshot.name}"
-        change = history.window_change(key, current=value, now=now, window_minutes=window_minutes)
-        if change is None:
-            history.record(key, value, now)
+        latest_change = history.latest_change(key, current=value)
+        window_change = history.window_change(
+            key,
+            current=value,
+            now=now,
+            window_minutes=window_minutes,
+        )
+        history.record(key, value, now)
+        if latest_change is None:
             continue
-        body = f"{label}: {value_format.format(value)}\n{window_minutes}m 变化: {change.percent:+.2%}"
+        lines = [f"1m 变化: {latest_change.percent:+.2%}"]
+        breached = predicate(latest_change.percent)
+        if window_change is None:
+            lines.append(f"{window_minutes}m 变化: 暂无")
+        else:
+            lines.append(f"{window_minutes}m 变化: {window_change.percent:+.2%}")
+            breached = breached or predicate(window_change.percent)
+        body = f"{label}: {value_format.format(value)}\n" + "\n".join(lines)
         event = engine.evaluate(
             metric_key=key,
-            breached=predicate(change.percent),
+            breached=breached,
             alert_title=alert_title,
             alert_body=body,
             recovery_title=recovery_title,
             recovery_body=body,
             now=now,
         )
-        history.record(key, value, now)
         if event is not None:
             events.append(event)
     return events

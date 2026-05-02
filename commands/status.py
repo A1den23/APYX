@@ -18,6 +18,7 @@ from monitors.supply import fetch_total_supply_async
 from monitors.apyusd import fetch_price_apxusd_async, fetch_total_assets_async
 from monitors.commit import fetch_commit_token_snapshot_async
 from monitors.curve import fetch_curve_pool_snapshot_async
+from monitors.morpho import fetch_morpho_market
 from monitors.solvency import fetch_solvency_snapshot
 from monitors.yield_distribution import fetch_yield_distribution_snapshot_async
 from app.status_cache import StatusCache
@@ -105,6 +106,38 @@ async def build_status_message(
             f"pendle_liquidity:{market.name}",
             f"pendle_apy:{market.name}",
             f"pendle_pt_price:{market.name}",
+        ])
+
+    # ── Morpho ──
+    morpho_lines: list[str] = []
+    for market in settings.morpho.markets:
+        try:
+            cache_key = f"morpho:{market.name}"
+            snap = (
+                _cached_status_value(status_cache, cache_key)
+                if status_cache is not None
+                else await fetch_morpho_market(session, web3=web3, market=market)
+            )
+            oracle_part = (
+                f" | oracle ${snap.oracle_price:.4f}"
+                if snap.oracle_price is not None
+                else ""
+            )
+            morpho_lines.append(
+                f"{market.name}  "
+                f"size ${snap.total_market_size_usd/1e6:.2f}M | "
+                f"liq ${snap.total_liquidity_usd/1e6:.2f}M | "
+                f"borrow {snap.borrow_rate:.2%} | "
+                f"util {snap.utilization:.2%}"
+                f"{oracle_part}"
+            )
+        except Exception as e:
+            morpho_lines.append(f"{market.name}  ERROR - {_html_error(e)}")
+        all_keys.extend([
+            f"morpho_total_market_size:{market.name}",
+            f"morpho_total_liquidity:{market.name}",
+            f"morpho_borrow_rate:{market.name}",
+            f"morpho_oracle_price:{market.name}",
         ])
 
     # ── Curve ──
@@ -359,6 +392,8 @@ async def build_status_message(
         "📈 Pendle",
         *pendle_lines,
     ]
+    if morpho_lines:
+        result.extend(["", "🦋 Morpho", *morpho_lines])
     if curve_lines:
         result.extend(["", "🌊 Curve", *curve_lines])
 

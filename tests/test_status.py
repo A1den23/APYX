@@ -6,6 +6,7 @@ from app.config import EnvConfig, load_app_config
 from app.history import RollingMetricHistory
 from monitors.commit import CommitTokenSnapshot
 from monitors.curve import CurvePoolSnapshot
+from monitors.morpho import MorphoMarketSnapshot
 from monitors.pendle import PendleMarketSnapshot
 from monitors.solvency import AccountableSolvencySnapshot
 from monitors.yield_distribution import YieldDistributionSnapshot
@@ -32,6 +33,19 @@ def test_status_uses_compact_metric_labels(monkeypatch) -> None:
             pt_price = 0.96
 
         return Snapshot()
+
+    async def fake_fetch_morpho_market(session, *, web3, market):
+        return MorphoMarketSnapshot(
+            name=market.name,
+            total_market_size_usd=23_103_000.0,
+            total_liquidity_usd=2_623_000.0,
+            borrow_rate=0.0444,
+            utilization=0.8864,
+            oracle_address="0xoracle",
+            oracle_price=0.925,
+            loan_asset_symbol="USDC",
+            collateral_asset_symbol="PT-apyUSD-18JUN2026",
+        )
 
     async def fake_fetch_peg_price(session, *, address: str) -> float:
         return 1.0
@@ -108,6 +122,7 @@ def test_status_uses_compact_metric_labels(monkeypatch) -> None:
 
     monkeypatch.setattr("commands.status.fetch_strc_price", fake_fetch_strc_price)
     monkeypatch.setattr("commands.status.fetch_pendle_market", fake_fetch_pendle_market)
+    monkeypatch.setattr("commands.status.fetch_morpho_market", fake_fetch_morpho_market)
     monkeypatch.setattr("commands.status.fetch_peg_price", fake_fetch_peg_price)
     monkeypatch.setattr("commands.status.fetch_total_supply_async", fake_fetch_total_supply_async)
     monkeypatch.setattr("commands.status.fetch_total_assets_async", fake_fetch_total_assets_async)
@@ -136,6 +151,11 @@ def test_status_uses_compact_metric_labels(monkeypatch) -> None:
     assert "📈 Pendle" in message
     assert "apxUSD  liq $1.00M | APY 8.00% | PT $0.9600" in message
     assert "apyUSD  liq $1.00M | APY 8.00% | PT $0.9600" in message
+    assert "🦋 Morpho" in message
+    assert (
+        "PT-apyUSD-18JUN2026-USDC  size $23.10M | "
+        "liq $2.62M | borrow 4.44% | util 88.64% | oracle $0.9250"
+    ) in message
     assert "🌊 Curve" in message
     assert "apxUSD-USDC  depth $25.06M | price $1.0000 | vp 1.000286" in message
     assert (
@@ -179,6 +199,19 @@ def test_status_marks_protocol_security_red_when_security_events_active(monkeypa
 
         return Snapshot()
 
+    async def fake_fetch_morpho_market(session, *, web3, market):
+        return MorphoMarketSnapshot(
+            name=market.name,
+            total_market_size_usd=23_103_000.0,
+            total_liquidity_usd=2_623_000.0,
+            borrow_rate=0.0444,
+            utilization=0.8864,
+            oracle_address="0xoracle",
+            oracle_price=0.925,
+            loan_asset_symbol="USDC",
+            collateral_asset_symbol="PT-apyUSD-18JUN2026",
+        )
+
     async def fake_fetch_peg_price(session, *, address: str) -> float:
         return 1.0
 
@@ -207,6 +240,7 @@ def test_status_marks_protocol_security_red_when_security_events_active(monkeypa
 
     monkeypatch.setattr("commands.status.fetch_strc_price", fake_fetch_strc_price)
     monkeypatch.setattr("commands.status.fetch_pendle_market", fake_fetch_pendle_market)
+    monkeypatch.setattr("commands.status.fetch_morpho_market", fake_fetch_morpho_market)
     monkeypatch.setattr("commands.status.fetch_peg_price", fake_fetch_peg_price)
     monkeypatch.setattr("commands.status.fetch_total_supply_async", fake_fetch_total_supply_async)
     monkeypatch.setattr("commands.status.fetch_total_assets_async", fake_fetch_total_assets_async)
@@ -274,6 +308,21 @@ def test_status_uses_cache_without_live_fetches(monkeypatch) -> None:
         now,
     )
     cache.set(
+        "morpho:PT-apyUSD-18JUN2026-USDC",
+        MorphoMarketSnapshot(
+            name="PT-apyUSD-18JUN2026-USDC",
+            total_market_size_usd=23_103_000.0,
+            total_liquidity_usd=2_623_000.0,
+            borrow_rate=0.0444,
+            utilization=0.8864,
+            oracle_address="0xoracle",
+            oracle_price=0.925,
+            loan_asset_symbol="USDC",
+            collateral_asset_symbol="PT-apyUSD-18JUN2026",
+        ),
+        now,
+    )
+    cache.set(
         "solvency:accountable",
         AccountableSolvencySnapshot(
             collateralization=1.007765,
@@ -297,6 +346,7 @@ def test_status_uses_cache_without_live_fetches(monkeypatch) -> None:
 
     monkeypatch.setattr("commands.status.fetch_strc_price", fail_fetch)
     monkeypatch.setattr("commands.status.fetch_pendle_market", fail_fetch)
+    monkeypatch.setattr("commands.status.fetch_morpho_market", fail_fetch)
     monkeypatch.setattr("commands.status.fetch_peg_price", fail_fetch)
     monkeypatch.setattr("commands.status.fetch_total_supply_async", fail_fetch)
     monkeypatch.setattr("commands.status.fetch_total_assets_async", fail_fetch)
@@ -321,6 +371,7 @@ def test_status_uses_cache_without_live_fetches(monkeypatch) -> None:
     assert parse_mode == "HTML"
     assert "STRC $101.00" in message
     assert "liq $1.00M | APY 8.00% | PT $0.9600" in message
+    assert "size $23.10M | liq $2.62M | borrow 4.44%" in message
     assert "shares 53.94M" in message
 
 
