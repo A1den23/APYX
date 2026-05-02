@@ -307,6 +307,8 @@ def parse_token_movements(
         if len(topics) < 3 or _hex(topics[0]).lower() != TRANSFER_TOPIC.lower():
             continue
         token_address = str(log["address"]).lower()
+        if token_address not in names:
+            continue
         from_address = _topic_to_address(topics[1])
         to_address = _topic_to_address(topics[2])
         if from_address != ZERO_ADDRESS and to_address != ZERO_ADDRESS:

@@ -240,6 +240,25 @@ def test_recent_security_event_cache_keeps_status_active_for_one_hour() -> None:
     assert "security_events" not in engine.active_alerts()
 
 
+def test_parse_token_movements_skips_unconfigured_token_address() -> None:
+    tokens = (SupplyToken(name="APX", address="0xaaa", absolute_change_threshold=1_000_000),)
+    decimals_by_address = {"0xaaa": 18}
+    logs = [{
+        "address": "0xbbb",
+        "topics": [
+            TRANSFER_TOPIC,
+            _topic_address("0x0000000000000000000000000000000000000000"),
+            _topic_address("0x1111111111111111111111111111111111111111"),
+        ],
+        "data": hex(10**18),
+        "transactionHash": "0xabc",
+        "blockNumber": 100,
+        "logIndex": 0,
+    }]
+    movements = parse_token_movements(logs, tokens=tokens, decimals_by_address=decimals_by_address)
+    assert len(movements) == 0
+
+
 def test_recent_security_event_cache_round_trips_last_event() -> None:
     now = datetime(2026, 4, 26, 10, 0, tzinfo=timezone.utc)
     cache = RecentSecurityEventCache(hold_duration=timedelta(hours=1))
