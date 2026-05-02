@@ -25,7 +25,6 @@ class TelegramSender:
     def __init__(self, bot_token: str, chat_id: str) -> None:
         self._bot = Bot(token=bot_token)
         self._chat_id = chat_id
-        self._bot_token = bot_token
         self._offset = 0
         self._poll_task: asyncio.Task | None = None
         self._status_fn: Callable[[], Coroutine] | None = None
