@@ -50,6 +50,7 @@ DERIVED_CONTRACT_ABI = [
     },
 ]
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
+_contract_names_cache: dict[str, str] | None = None
 
 
 def _security_contract_names(settings: AppConfig) -> dict[str, str]:
@@ -107,8 +108,13 @@ async def resolve_security_contract_names(
     *,
     settings: AppConfig,
 ) -> dict[str, str]:
+    global _contract_names_cache
+    if _contract_names_cache is not None:
+        return _contract_names_cache
     base_names = _security_contract_names(settings)
-    return await asyncio.to_thread(_derive_security_contract_names, web3, base_names)
+    contract_names = await asyncio.to_thread(_derive_security_contract_names, web3, base_names)
+    _contract_names_cache = contract_names
+    return contract_names
 
 
 async def run_security_event_checks(
