@@ -80,7 +80,7 @@ def evaluate_pendle_market(
             "${:.4f}",
         ),
     ]
-    for metric, value, _threshold, predicate, alert_title, recovery_title, label, value_format in checks:
+    for metric, value, _, predicate, alert_title, recovery_title, label, value_format in checks:
         key = f"{metric}:{snapshot.name}"
         latest_change = history.latest_change(key, current=value)
         window_change = history.window_change(
