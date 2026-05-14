@@ -211,6 +211,7 @@ def test_load_env_config_reads_required_values(monkeypatch) -> None:
     monkeypatch.setenv("TG_BOT_TOKEN", "telegram-token")
     monkeypatch.setenv("TG_CHAT_ID", "12345")
     monkeypatch.setenv("ETH_RPC_URL", "https://rpc.example")
+    monkeypatch.setenv("ETH_RPC_FALLBACK_URL", "https://fallback-rpc.example")
 
     env = load_env_config()
 
@@ -218,3 +219,27 @@ def test_load_env_config_reads_required_values(monkeypatch) -> None:
     assert env.telegram_bot_token == "telegram-token"
     assert env.telegram_chat_id == "12345"
     assert env.eth_rpc_url == "https://rpc.example"
+    assert env.eth_rpc_fallback_url == "https://fallback-rpc.example"
+
+
+def test_load_env_config_allows_missing_fallback_rpc(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.delenv("FINNHUB_API_KEY", raising=False)
+    monkeypatch.delenv("TG_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("TG_CHAT_ID", raising=False)
+    monkeypatch.delenv("ETH_RPC_URL", raising=False)
+    monkeypatch.delenv("ETH_RPC_FALLBACK_URL", raising=False)
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "\n".join(
+            (
+                "FINNHUB_API_KEY=finnhub-key",
+                "TG_BOT_TOKEN=telegram-token",
+                "TG_CHAT_ID=12345",
+                "ETH_RPC_URL=https://rpc.example",
+            )
+        )
+    )
+
+    env = load_env_config(env_file)
+
+    assert env.eth_rpc_fallback_url is None

@@ -15,7 +15,7 @@ from commands.help import build_help_message
 from commands.status import build_health_message, build_status_message
 from commands.strategy import build_strategy_message
 from commands.thresholds import build_thresholds_message
-from app.config import AppConfig, load_app_config, load_env_config
+from app.config import AppConfig, EnvConfig, load_app_config, load_env_config
 from app.errors import safe_error_message
 from app.history import RollingMetricHistory
 from app.jobs import run_five_minute_checks, run_one_minute_checks
@@ -26,6 +26,33 @@ from app.status_cache import StatusCache
 
 RPC_TIMEOUT_SECONDS = 20
 JOB_MISFIRE_GRACE_SECONDS = 30
+
+
+def _make_http_web3(rpc_url: str) -> Web3:
+    return Web3(
+        Web3.HTTPProvider(
+            rpc_url,
+            request_kwargs={"timeout": RPC_TIMEOUT_SECONDS},
+        )
+    )
+
+
+def _is_web3_connected(web3: Web3) -> bool:
+    try:
+        return bool(web3.is_connected())
+    except Exception:
+        return False
+
+
+def _build_web3(env: EnvConfig) -> Web3:
+    primary = _make_http_web3(env.eth_rpc_url)
+    if not env.eth_rpc_fallback_url:
+        return primary
+    if _is_web3_connected(primary):
+        return primary
+
+    print("Primary ETH RPC unavailable; using fallback RPC.", flush=True)
+    return _make_http_web3(env.eth_rpc_fallback_url)
 
 
 async def send_lifecycle_notification(
@@ -119,12 +146,7 @@ async def run_service(*, once: bool) -> None:
     _register_monitors(tracker, settings)
     tracker.register("runtime_state", 0)
     sender = TelegramSender(env.telegram_bot_token, env.telegram_chat_id)
-    web3 = Web3(
-        Web3.HTTPProvider(
-            env.eth_rpc_url,
-            request_kwargs={"timeout": RPC_TIMEOUT_SECONDS},
-        )
-    )
+    web3 = _build_web3(env)
 
     timeout = ClientTimeout(total=settings.runtime.http_timeout_seconds)
     async with ClientSession(timeout=timeout) as session:

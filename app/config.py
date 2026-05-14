@@ -405,12 +405,20 @@ class EnvConfig:
     telegram_bot_token: str
     telegram_chat_id: str
     eth_rpc_url: str
+    eth_rpc_fallback_url: str | None = None
 
 
 def _required_env(name: str) -> str:
     value = os.getenv(name)
     if value is None or value == "":
         raise RuntimeError(f"Missing required environment variable: {name}")
+    return value
+
+
+def _optional_env(name: str) -> str | None:
+    value = os.getenv(name)
+    if value is None or value == "":
+        return None
     return value
 
 
@@ -421,4 +429,5 @@ def load_env_config(env_file: str | Path = ".env") -> EnvConfig:
         telegram_bot_token=_required_env("TG_BOT_TOKEN"),
         telegram_chat_id=_required_env("TG_CHAT_ID"),
         eth_rpc_url=_required_env("ETH_RPC_URL"),
+        eth_rpc_fallback_url=_optional_env("ETH_RPC_FALLBACK_URL"),
     )
