@@ -3,10 +3,12 @@ from __future__ import annotations
 import asyncio
 import signal
 from datetime import timedelta, timezone
+from urllib.parse import urlsplit
 
 from aiohttp import ClientSession, ClientTimeout
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from web3 import Web3
+from web3.providers.base import BaseProvider
 
 from alert.engine import AlertEngine
 from alert.telegram import TelegramSender
@@ -26,15 +28,126 @@ from app.status_cache import StatusCache
 
 RPC_TIMEOUT_SECONDS = 20
 JOB_MISFIRE_GRACE_SECONDS = 30
+RETRYABLE_RPC_STATUS_CODES = (429, 502, 503, 504)
 
 
-def _make_http_web3(rpc_url: str) -> Web3:
-    return Web3(
-        Web3.HTTPProvider(
-            rpc_url,
-            request_kwargs={"timeout": RPC_TIMEOUT_SECONDS},
-        )
+def _rpc_url_label(rpc_url: str) -> str:
+    parsed = urlsplit(rpc_url)
+    return parsed.netloc or "<rpc-endpoint>"
+
+
+def _is_retryable_rpc_error(error: BaseException | str) -> bool:
+    message = str(error)
+    retryable_markers = (
+        "Too Many Requests",
+        "rate limit",
+        "rate-limit",
+        "timeout",
+        "timed out",
+        "ConnectionError",
+        "ConnectTimeout",
+        "ReadTimeout",
     )
+    return any(str(status) in message for status in RETRYABLE_RPC_STATUS_CODES) or any(
+        marker.lower() in message.lower() for marker in retryable_markers
+    )
+
+
+def _is_retryable_rpc_response(response: object) -> bool:
+    if not isinstance(response, dict):
+        return False
+    error = response.get("error")
+    if not isinstance(error, dict):
+        return False
+    code = error.get("code")
+    message = str(error.get("message", ""))
+    return code in RETRYABLE_RPC_STATUS_CODES or _is_retryable_rpc_error(message)
+
+
+class FailoverHTTPProvider(BaseProvider):
+    def __init__(self, rpc_urls: list[str], *, request_kwargs: dict[str, int]) -> None:
+        if not rpc_urls:
+            raise ValueError("At least one Ethereum RPC URL is required")
+        self._providers = [
+            Web3.HTTPProvider(rpc_url, request_kwargs=request_kwargs)
+            for rpc_url in rpc_urls
+        ]
+        self._rpc_urls = rpc_urls
+        self._active_index = 0
+
+    @property
+    def url(self) -> str:
+        return self._rpc_urls[self._active_index]
+
+    @property
+    def endpoint_uri(self) -> str:
+        return self.url
+
+    def _activate(self, index: int, *, reason: str | None = None) -> None:
+        if index == self._active_index:
+            return
+        previous_url = self.url
+        self._active_index = index
+        message = (
+            f"ETH RPC switched from {_rpc_url_label(previous_url)} "
+            f"to {_rpc_url_label(self.url)}"
+        )
+        if reason:
+            message = f"{message}: {reason}"
+        print(message, flush=True)
+
+    def activate_next_endpoint(self, *, reason: str | None = None) -> None:
+        if len(self._providers) == 1:
+            return
+        self._activate((self._active_index + 1) % len(self._providers), reason=reason)
+
+    def is_connected(self, show_traceback: bool = False) -> bool:
+        for offset in range(len(self._providers)):
+            index = (self._active_index + offset) % len(self._providers)
+            provider = self._providers[index]
+            try:
+                is_connected = provider.is_connected(show_traceback=show_traceback)
+            except TypeError:
+                is_connected = provider.is_connected()
+            except Exception:
+                is_connected = False
+            if is_connected:
+                self._activate(index)
+                return True
+        return False
+
+    def make_request(self, method: str, params: object) -> object:
+        last_error: BaseException | None = None
+        start_index = self._active_index
+        for offset in range(len(self._providers)):
+            index = (start_index + offset) % len(self._providers)
+            provider = self._providers[index]
+            try:
+                response = provider.make_request(method, params)
+            except Exception as e:
+                if len(self._providers) > 1 and _is_retryable_rpc_error(e):
+                    last_error = e
+                    self._activate(
+                        (index + 1) % len(self._providers),
+                        reason=f"{method} failed with retryable RPC error",
+                    )
+                    continue
+                raise
+
+            if len(self._providers) > 1 and _is_retryable_rpc_response(response):
+                last_error = RuntimeError(str(response.get("error")))
+                self._activate(
+                    (index + 1) % len(self._providers),
+                    reason=f"{method} returned retryable RPC error",
+                )
+                continue
+
+            self._activate(index)
+            return response
+
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError("No Ethereum RPC endpoint returned a response")
 
 
 def _is_web3_connected(web3: Web3) -> bool:
@@ -45,14 +158,18 @@ def _is_web3_connected(web3: Web3) -> bool:
 
 
 def _build_web3(env: EnvConfig) -> Web3:
-    primary = _make_http_web3(env.eth_rpc_url)
-    if not env.eth_rpc_fallback_url:
-        return primary
-    if _is_web3_connected(primary):
-        return primary
+    rpc_urls = [env.eth_rpc_url]
+    if env.eth_rpc_fallback_url:
+        rpc_urls.append(env.eth_rpc_fallback_url)
 
-    print("Primary ETH RPC unavailable; using fallback RPC.", flush=True)
-    return _make_http_web3(env.eth_rpc_fallback_url)
+    provider = FailoverHTTPProvider(
+        rpc_urls,
+        request_kwargs={"timeout": RPC_TIMEOUT_SECONDS},
+    )
+    web3 = Web3(provider)
+    if env.eth_rpc_fallback_url and not _is_web3_connected(web3):
+        provider.activate_next_endpoint(reason="primary RPC unavailable at startup")
+    return web3
 
 
 async def send_lifecycle_notification(

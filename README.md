@@ -55,7 +55,7 @@ docker compose logs -f
 | `TG_BOT_TOKEN` | Telegram Bot API Token | `123456:ABC-DEF` |
 | `TG_CHAT_ID` | 接收消息的 Chat ID | `<your-chat-id>` |
 | `ETH_RPC_URL` | Ethereum JSON-RPC 端点（需支持 eth_call） | Alchemy / Infura |
-| `ETH_RPC_FALLBACK_URL` | 备用 Ethereum JSON-RPC 端点；启动时主 RPC 不可用则切换到此端点 | Infura / QuickNode |
+| `ETH_RPC_FALLBACK_URL` | 备用 Ethereum JSON-RPC 端点；启动时主 RPC 不可用，或运行中遇到 429 / 5xx / timeout 等可恢复错误时自动切换 | Infura / QuickNode |
 | `FINNHUB_API_KEY` | Finnhub API Key（免费注册） | `d7lk...` |
 
 ## Telegram 命令
