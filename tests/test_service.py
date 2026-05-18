@@ -1,4 +1,5 @@
 from app.config import EnvConfig
+from app.rpc_status import RpcEndpointStatus
 from app.service import FailoverHTTPProvider, _build_web3
 
 
@@ -192,3 +193,63 @@ def test_failover_provider_can_skip_multiple_retryable_rpc_failures(monkeypatch)
 
     assert response == {"jsonrpc": "2.0", "id": 1, "result": "0x3"}
     assert provider.url == "https://fallback-2-rpc.example"
+
+
+def test_failover_provider_reports_endpoint_statuses_without_switching_active(monkeypatch) -> None:
+    class FakeProvider:
+        def __init__(self, url: str, *, request_kwargs: dict[str, int]) -> None:
+            self.url = url
+
+        def make_request(self, method: str, params: object) -> dict[str, object]:
+            if self.url == "https://primary-rpc.example/secret-token":
+                return {"jsonrpc": "2.0", "id": 1, "result": "0x10"}
+            if self.url == "https://fallback-1-rpc.example/key":
+                return {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "error": {"code": -32000, "message": "Unauthorized"},
+                }
+            raise RuntimeError("504 Gateway Timeout for https://fallback-2-rpc.example/key")
+
+        def is_connected(self, show_traceback: bool = False) -> bool:
+            return True
+
+    class FakeWeb3:
+        HTTPProvider = FakeProvider
+
+    monkeypatch.setattr("app.service.Web3", FakeWeb3)
+    provider = FailoverHTTPProvider(
+        [
+            "https://primary-rpc.example/secret-token",
+            "https://fallback-1-rpc.example/key",
+            "https://fallback-2-rpc.example/key",
+        ],
+        request_kwargs={"timeout": 20},
+    )
+
+    statuses = provider.endpoint_statuses()
+
+    assert statuses == (
+        RpcEndpointStatus(
+            role="primary",
+            label="primary-rpc.example",
+            active=True,
+            connected=True,
+            block_number=16,
+        ),
+        RpcEndpointStatus(
+            role="fallback 1",
+            label="fallback-1-rpc.example",
+            active=False,
+            connected=False,
+            error="Unauthorized",
+        ),
+        RpcEndpointStatus(
+            role="fallback 2",
+            label="fallback-2-rpc.example",
+            active=False,
+            connected=False,
+            error="504 Gateway Timeout for fallback-2-rpc.example",
+        ),
+    )
+    assert provider.url == "https://primary-rpc.example/secret-token"

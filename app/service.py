@@ -14,6 +14,7 @@ from alert.engine import AlertEngine
 from alert.telegram import TelegramSender
 from commands.health import HealthTracker
 from commands.help import build_help_message
+from commands.rpc import build_rpc_message
 from commands.status import build_health_message, build_status_message
 from commands.strategy import build_strategy_message
 from commands.thresholds import build_thresholds_message
@@ -21,6 +22,7 @@ from app.config import AppConfig, EnvConfig, load_app_config, load_env_config
 from app.errors import safe_error_message
 from app.history import RollingMetricHistory
 from app.jobs import run_five_minute_checks, run_one_minute_checks
+from app.rpc_status import RpcEndpointStatus
 from monitors.security_events import LogScanState, RecentSecurityEventCache
 from app.runtime_state import RuntimeState, RuntimeStateStore
 from app.status_cache import StatusCache
@@ -33,7 +35,21 @@ RETRYABLE_RPC_STATUS_CODES = (429, 502, 503, 504)
 
 def _rpc_url_label(rpc_url: str) -> str:
     parsed = urlsplit(rpc_url)
+    if parsed.hostname:
+        return f"{parsed.hostname}:{parsed.port}" if parsed.port else parsed.hostname
     return parsed.netloc or "<rpc-endpoint>"
+
+
+def _rpc_role(index: int) -> str:
+    return "primary" if index == 0 else f"fallback {index}"
+
+
+def _safe_rpc_error_message(error: BaseException | str, *, rpc_url: str) -> str:
+    if isinstance(error, BaseException):
+        raw = str(error) or error.__class__.__name__
+    else:
+        raw = str(error)
+    return safe_error_message(raw.replace(rpc_url, _rpc_url_label(rpc_url)))
 
 
 def _is_retryable_rpc_error(error: BaseException | str) -> bool:
@@ -148,6 +164,73 @@ class FailoverHTTPProvider(BaseProvider):
         if last_error is not None:
             raise last_error
         raise RuntimeError("No Ethereum RPC endpoint returned a response")
+
+    def endpoint_statuses(self) -> tuple[RpcEndpointStatus, ...]:
+        statuses: list[RpcEndpointStatus] = []
+        for index, provider in enumerate(self._providers):
+            statuses.append(
+                self._endpoint_status(
+                    index=index,
+                    provider=provider,
+                    rpc_url=self._rpc_urls[index],
+                )
+            )
+        return tuple(statuses)
+
+    def _endpoint_status(
+        self,
+        *,
+        index: int,
+        provider: BaseProvider,
+        rpc_url: str,
+    ) -> RpcEndpointStatus:
+        try:
+            response = provider.make_request("eth_blockNumber", [])
+        except Exception as e:
+            return RpcEndpointStatus(
+                role=_rpc_role(index),
+                label=_rpc_url_label(rpc_url),
+                active=index == self._active_index,
+                connected=False,
+                error=_safe_rpc_error_message(e, rpc_url=rpc_url),
+            )
+
+        if not isinstance(response, dict):
+            return RpcEndpointStatus(
+                role=_rpc_role(index),
+                label=_rpc_url_label(rpc_url),
+                active=index == self._active_index,
+                connected=False,
+                error="Invalid RPC response",
+            )
+
+        error = response.get("error")
+        if isinstance(error, dict):
+            return RpcEndpointStatus(
+                role=_rpc_role(index),
+                label=_rpc_url_label(rpc_url),
+                active=index == self._active_index,
+                connected=False,
+                error=_safe_rpc_error_message(
+                    str(error.get("message") or error),
+                    rpc_url=rpc_url,
+                ),
+            )
+
+        block_number = None
+        result = response.get("result")
+        if isinstance(result, str):
+            try:
+                block_number = int(result, 16)
+            except ValueError:
+                block_number = None
+        return RpcEndpointStatus(
+            role=_rpc_role(index),
+            label=_rpc_url_label(rpc_url),
+            active=index == self._active_index,
+            connected=True,
+            block_number=block_number,
+        )
 
 
 def _is_web3_connected(web3: Web3) -> bool:
@@ -335,6 +418,9 @@ async def run_service(*, once: bool) -> None:
                 health_fn=lambda: build_health_message(
                     tracker=tracker,
                     engine=engine,
+                ),
+                rpc_fn=lambda: asyncio.to_thread(
+                    lambda: build_rpc_message(web3.provider.endpoint_statuses())
                 ),
                 strategy_fn=lambda: asyncio.to_thread(build_strategy_message),
                 thresholds_fn=lambda: asyncio.to_thread(

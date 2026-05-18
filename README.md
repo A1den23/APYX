@@ -66,6 +66,7 @@ docker compose logs -f
 | `/status` | 查看所有监控指标当前值 |
 | `/thresholds` | 查看所有预警阈值 |
 | `/health` | 服务自检：运行时间、成功率、数据新鲜度、错误分布 |
+| `/rpc` | 查看接入的 Ethereum RPC 节点连通状态 |
 | `/strategy` | 查看当前监控策略说明 |
 | `/help` | 查看 Telegram 命令帮助 |
 

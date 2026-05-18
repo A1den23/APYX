@@ -16,6 +16,7 @@ TELEGRAM_COMMANDS = [
     BotCommand("status", "查看所有监控指标当前值"),
     BotCommand("thresholds", "查看所有预警阈值"),
     BotCommand("health", "服务自检"),
+    BotCommand("rpc", "查看 RPC 节点状态"),
     BotCommand("strategy", "查看当前监控策略说明"),
     BotCommand("help", "查看命令帮助"),
 ]
@@ -29,6 +30,7 @@ class TelegramSender:
         self._poll_task: asyncio.Task | None = None
         self._status_fn: Callable[[], Coroutine] | None = None
         self._health_fn: Callable[[], Coroutine] | None = None
+        self._rpc_fn: Callable[[], Coroutine] | None = None
         self._strategy_fn: Callable[[], Coroutine] | None = None
         self._thresholds_fn: Callable[[], Coroutine] | None = None
         self._help_fn: Callable[[], Coroutine] | None = None
@@ -44,6 +46,7 @@ class TelegramSender:
         self,
         status_fn: Callable[[], Coroutine],
         health_fn: Callable[[], Coroutine],
+        rpc_fn: Callable[[], Coroutine],
         strategy_fn: Callable[[], Coroutine],
         thresholds_fn: Callable[[], Coroutine],
         help_fn: Callable[[], Coroutine],
@@ -51,6 +54,7 @@ class TelegramSender:
     ) -> None:
         self._status_fn = status_fn
         self._health_fn = health_fn
+        self._rpc_fn = rpc_fn
         self._strategy_fn = strategy_fn
         self._thresholds_fn = thresholds_fn
         self._help_fn = help_fn
@@ -100,6 +104,9 @@ class TelegramSender:
             await self._reply_text(update, msg, parse_mode=parse_mode)
         elif command == "/health" and self._health_fn:
             msg = await self._health_fn()
+            await self._reply_text(update, msg)
+        elif command == "/rpc" and self._rpc_fn:
+            msg = await self._rpc_fn()
             await self._reply_text(update, msg)
         elif command == "/strategy" and self._strategy_fn:
             msg = await self._strategy_fn()

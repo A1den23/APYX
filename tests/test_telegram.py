@@ -71,6 +71,7 @@ def test_start_commands_registers_telegram_command_suggestions() -> None:
         await sender.start_commands(
             status_fn=handler,
             health_fn=handler,
+            rpc_fn=handler,
             strategy_fn=handler,
             thresholds_fn=handler,
             help_fn=handler,
@@ -83,6 +84,7 @@ def test_start_commands_registers_telegram_command_suggestions() -> None:
         ("status", "查看所有监控指标当前值"),
         ("thresholds", "查看所有预警阈值"),
         ("health", "服务自检"),
+        ("rpc", "查看 RPC 节点状态"),
         ("strategy", "查看当前监控策略说明"),
         ("help", "查看命令帮助"),
     ]
@@ -169,6 +171,20 @@ def test_dispatch_help_command_replies_with_help_text() -> None:
     asyncio.run(sender._dispatch(update))
 
     assert update.message.replies == [("APYX help", None)]
+
+
+def test_dispatch_rpc_command_replies_with_rpc_text() -> None:
+    sender = TelegramSender("token", "123")
+    update = FakeUpdate("/rpc")
+
+    async def rpc_fn() -> str:
+        return "APYX RPC status"
+
+    sender._rpc_fn = rpc_fn
+
+    asyncio.run(sender._dispatch(update))
+
+    assert update.message.replies == [("APYX RPC status", None)]
 
 
 def test_dispatch_thresholds_command_replies_with_thresholds_text() -> None:
