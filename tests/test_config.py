@@ -119,6 +119,8 @@ alert:
 runtime:
   state_path: "/tmp/apyx-state.json"
   http_timeout_seconds: 12
+  onchain_interval_minutes: 3
+  external_interval_minutes: 5
 """.strip(),
         encoding="utf-8",
     )
@@ -183,6 +185,8 @@ def test_load_app_config_parses_thresholds_and_addresses(tmp_path: Path) -> None
     assert settings.alert.cooldown_minutes == 1
     assert settings.runtime.state_path == "/tmp/apyx-state.json"
     assert settings.runtime.http_timeout_seconds == 12
+    assert settings.runtime.onchain_interval_minutes == 3
+    assert settings.runtime.external_interval_minutes == 5
 
 
 def test_load_app_config_uses_immutable_collections(tmp_path: Path) -> None:

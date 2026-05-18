@@ -145,3 +145,5 @@ alert:
 runtime:
   state_path: "state/runtime-state.json"
   http_timeout_seconds: 20
+  onchain_interval_minutes: 3
+  external_interval_minutes: 5

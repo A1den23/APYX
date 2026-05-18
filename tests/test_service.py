@@ -1,6 +1,7 @@
-from app.config import EnvConfig
+from app.config import EnvConfig, load_app_config
 from app.rpc_status import RpcEndpointStatus
-from app.service import FailoverHTTPProvider, _build_web3
+from app.service import FailoverHTTPProvider, _add_recurring_jobs, _build_web3
+from app.jobs import run_five_minute_checks, run_one_minute_checks
 
 
 def test_build_web3_uses_fallback_when_primary_rpc_is_unavailable(monkeypatch) -> None:
@@ -34,6 +35,34 @@ def test_build_web3_uses_fallback_when_primary_rpc_is_unavailable(monkeypatch) -
 
     assert web3.provider.url == "https://fallback-rpc.example"
     assert created_urls == ["https://primary-rpc.example"]
+
+
+def test_add_recurring_jobs_uses_configured_runtime_intervals() -> None:
+    settings = load_app_config()
+    calls: list[tuple[object, str, dict[str, object]]] = []
+
+    class FakeScheduler:
+        def add_job(self, func: object, trigger: str, **kwargs: object) -> None:
+            calls.append((func, trigger, kwargs))
+
+    onchain_kwargs = {"kind": "onchain"}
+    external_kwargs = {"kind": "external"}
+
+    _add_recurring_jobs(
+        FakeScheduler(),
+        settings=settings,
+        onchain_kwargs=onchain_kwargs,
+        external_kwargs=external_kwargs,
+    )
+
+    assert calls[0][0] is run_one_minute_checks
+    assert calls[0][1] == "interval"
+    assert calls[0][2]["minutes"] == 3
+    assert calls[0][2]["kwargs"] == onchain_kwargs
+    assert calls[1][0] is run_five_minute_checks
+    assert calls[1][1] == "interval"
+    assert calls[1][2]["minutes"] == 5
+    assert calls[1][2]["kwargs"] == external_kwargs
 
 
 def test_build_web3_registers_multiple_fallback_rpc_urls(monkeypatch) -> None:
@@ -193,6 +222,58 @@ def test_failover_provider_can_skip_multiple_retryable_rpc_failures(monkeypatch)
 
     assert response == {"jsonrpc": "2.0", "id": 1, "result": "0x3"}
     assert provider.url == "https://fallback-2-rpc.example"
+
+
+def test_failover_provider_skips_unsupported_method_rpc_responses(monkeypatch) -> None:
+    class FakeProvider:
+        def __init__(self, url: str, *, request_kwargs: dict[str, int]) -> None:
+            self.url = url
+
+        def make_request(self, method: str, params: object) -> dict[str, object]:
+            if self.url == "https://primary-rpc.example":
+                return {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "error": {"code": 429, "message": "Too Many Requests"},
+                }
+            if self.url == "https://unsupported-rpc.example":
+                return {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "error": {
+                        "code": -32601,
+                        "message": "the method eth_chainId does not exist/is not available",
+                    },
+                }
+            if self.url == "https://cannot-fulfill-rpc.example":
+                return {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "error": {"code": -32046, "message": "Cannot fulfill request"},
+                }
+            return {"jsonrpc": "2.0", "id": 1, "result": "0x1"}
+
+        def is_connected(self, show_traceback: bool = False) -> bool:
+            return True
+
+    class FakeWeb3:
+        HTTPProvider = FakeProvider
+
+    monkeypatch.setattr("app.service.Web3", FakeWeb3)
+    provider = FailoverHTTPProvider(
+        [
+            "https://primary-rpc.example",
+            "https://unsupported-rpc.example",
+            "https://cannot-fulfill-rpc.example",
+            "https://working-rpc.example",
+        ],
+        request_kwargs={"timeout": 20},
+    )
+
+    response = provider.make_request("eth_chainId", [])
+
+    assert response == {"jsonrpc": "2.0", "id": 1, "result": "0x1"}
+    assert provider.url == "https://working-rpc.example"
 
 
 def test_failover_provider_reports_endpoint_statuses_without_switching_active(monkeypatch) -> None:

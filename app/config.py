@@ -165,6 +165,8 @@ class AlertConfig:
 class RuntimeConfig:
     state_path: str
     http_timeout_seconds: int
+    onchain_interval_minutes: int = 3
+    external_interval_minutes: int = 5
 
 
 @dataclass(frozen=True)
@@ -397,6 +399,8 @@ def _load_runtime_config(data: dict) -> RuntimeConfig:
     return RuntimeConfig(
         state_path=str(data.get("state_path", "state/runtime-state.json")),
         http_timeout_seconds=int(data.get("http_timeout_seconds", 20)),
+        onchain_interval_minutes=int(data.get("onchain_interval_minutes", 3)),
+        external_interval_minutes=int(data.get("external_interval_minutes", 5)),
     )
 
 

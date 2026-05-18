@@ -31,6 +31,7 @@ from app.status_cache import StatusCache
 RPC_TIMEOUT_SECONDS = 20
 JOB_MISFIRE_GRACE_SECONDS = 30
 RETRYABLE_RPC_STATUS_CODES = (429, 502, 503, 504)
+FAILOVER_RPC_ERROR_CODES = (-32601, -32046)
 
 
 def _rpc_url_label(rpc_url: str) -> str:
@@ -63,6 +64,10 @@ def _is_retryable_rpc_error(error: BaseException | str) -> bool:
         "ConnectionError",
         "ConnectTimeout",
         "ReadTimeout",
+        "method not found",
+        "does not exist/is not available",
+        "Cannot fulfill request",
+        "Unauthorized",
     )
     return any(str(status) in message for status in RETRYABLE_RPC_STATUS_CODES) or any(
         marker.lower() in message.lower() for marker in retryable_markers
@@ -77,7 +82,11 @@ def _is_retryable_rpc_response(response: object) -> bool:
         return False
     code = error.get("code")
     message = str(error.get("message", ""))
-    return code in RETRYABLE_RPC_STATUS_CODES or _is_retryable_rpc_error(message)
+    return (
+        code in RETRYABLE_RPC_STATUS_CODES
+        or code in FAILOVER_RPC_ERROR_CODES
+        or _is_retryable_rpc_error(message)
+    )
 
 
 class FailoverHTTPProvider(BaseProvider):
@@ -256,6 +265,14 @@ def _build_web3(env: EnvConfig) -> Web3:
     return web3
 
 
+def _onchain_interval_seconds(settings: AppConfig) -> int:
+    return settings.runtime.onchain_interval_minutes * 60
+
+
+def _external_interval_seconds(settings: AppConfig) -> int:
+    return settings.runtime.external_interval_minutes * 60
+
+
 async def send_lifecycle_notification(
     sender: TelegramSender,
     *,
@@ -272,29 +289,65 @@ async def send_lifecycle_notification(
 
 
 def _register_monitors(tracker: HealthTracker, settings: AppConfig) -> None:
-    tracker.register("peg", 60)
+    onchain_interval_seconds = _onchain_interval_seconds(settings)
+    external_interval_seconds = _external_interval_seconds(settings)
+
+    tracker.register("peg", onchain_interval_seconds)
     for token in settings.supply.tokens:
-        tracker.register(f"supply:{token.name}", 60)
-    tracker.register("strc", 300)
+        tracker.register(f"supply:{token.name}", onchain_interval_seconds)
+    tracker.register("strc", external_interval_seconds)
     for symbol in settings.finnhub.symbols:
-        tracker.register(f"tradfi:{symbol.symbol}", 300)
-    tracker.register(f"total_assets:{settings.apyusd.token.name}", 60)
-    tracker.register("apyusd_price_apxusd", 60)
-    tracker.register(f"mint_backing:{settings.apyusd.token.name}", 60)
-    tracker.register("security_events", 60)
-    tracker.register("solvency:accountable", 300)
+        tracker.register(f"tradfi:{symbol.symbol}", external_interval_seconds)
+    tracker.register(
+        f"total_assets:{settings.apyusd.token.name}",
+        onchain_interval_seconds,
+    )
+    tracker.register("apyusd_price_apxusd", onchain_interval_seconds)
+    tracker.register(
+        f"mint_backing:{settings.apyusd.token.name}",
+        onchain_interval_seconds,
+    )
+    tracker.register("security_events", onchain_interval_seconds)
+    tracker.register("solvency:accountable", external_interval_seconds)
     if settings.yield_distribution.rate_view is not None:
-        tracker.register("yield_distribution", 60)
+        tracker.register("yield_distribution", onchain_interval_seconds)
     tracker.register("lifecycle_notifications", 0)
     tracker.register("telegram_commands", 0)
     for market in settings.pendle.markets:
-        tracker.register(f"pendle:{market.name}", 60)
+        tracker.register(f"pendle:{market.name}", onchain_interval_seconds)
     for market in settings.morpho.markets:
-        tracker.register(f"morpho:{market.name}", 60)
+        tracker.register(f"morpho:{market.name}", onchain_interval_seconds)
     for pool in settings.curve.pools:
-        tracker.register(f"curve:{pool.name}", 60)
+        tracker.register(f"curve:{pool.name}", onchain_interval_seconds)
     for token in settings.commit.tokens:
-        tracker.register(f"commit:{token.name}", 60)
+        tracker.register(f"commit:{token.name}", onchain_interval_seconds)
+
+
+def _add_recurring_jobs(
+    scheduler: AsyncIOScheduler,
+    *,
+    settings: AppConfig,
+    onchain_kwargs: dict,
+    external_kwargs: dict,
+) -> None:
+    scheduler.add_job(
+        run_one_minute_checks,
+        "interval",
+        minutes=settings.runtime.onchain_interval_minutes,
+        kwargs=onchain_kwargs,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=JOB_MISFIRE_GRACE_SECONDS,
+    )
+    scheduler.add_job(
+        run_five_minute_checks,
+        "interval",
+        minutes=settings.runtime.external_interval_minutes,
+        kwargs=external_kwargs,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=JOB_MISFIRE_GRACE_SECONDS,
+    )
 
 
 def _default_runtime_state(settings: AppConfig) -> RuntimeState:
@@ -364,17 +417,17 @@ async def run_service(*, once: bool) -> None:
             "status_cache": status_cache,
             "state_store": state_store,
         }
-        common_one_minute_kwargs = {
+        common_onchain_kwargs = {
             **common_kwargs,
             "token_decimals_by_address": token_decimals_by_address,
         }
-        common_five_minute_kwargs = {
+        common_external_kwargs = {
             **common_kwargs,
             "env": env,
         }
         if once:
-            await run_one_minute_checks(**common_one_minute_kwargs)
-            await run_five_minute_checks(**common_five_minute_kwargs)
+            await run_one_minute_checks(**common_onchain_kwargs)
+            await run_five_minute_checks(**common_external_kwargs)
             return
 
         stop_event = asyncio.Event()
@@ -386,23 +439,11 @@ async def run_service(*, once: bool) -> None:
                 pass
 
         scheduler = AsyncIOScheduler(timezone=timezone.utc)
-        scheduler.add_job(
-            run_one_minute_checks,
-            "interval",
-            minutes=1,
-            kwargs=common_one_minute_kwargs,
-            max_instances=1,
-            coalesce=True,
-            misfire_grace_time=JOB_MISFIRE_GRACE_SECONDS,
-        )
-        scheduler.add_job(
-            run_five_minute_checks,
-            "interval",
-            minutes=5,
-            kwargs=common_five_minute_kwargs,
-            max_instances=1,
-            coalesce=True,
-            misfire_grace_time=JOB_MISFIRE_GRACE_SECONDS,
+        _add_recurring_jobs(
+            scheduler,
+            settings=settings,
+            onchain_kwargs=common_onchain_kwargs,
+            external_kwargs=common_external_kwargs,
         )
         try:
             await sender.start_commands(

@@ -4,21 +4,21 @@ from app.security_scan import _security_contract_names
 from app.service import _register_monitors
 
 
-def test_register_monitors_includes_security_checks_and_one_minute_pendle() -> None:
+def test_register_monitors_uses_configured_runtime_intervals() -> None:
     settings = load_app_config()
     tracker = HealthTracker()
 
     _register_monitors(tracker, settings)
 
     snapshot = tracker.snapshot()
-    assert snapshot["security_events"].interval_seconds == 60
-    assert snapshot["mint_backing:apyUSD"].interval_seconds == 60
-    assert snapshot["pendle:apxUSD"].interval_seconds == 60
-    assert snapshot["morpho:PT-apyUSD-18JUN2026-USDC"].interval_seconds == 60
-    assert snapshot["curve:apxUSD-USDC"].interval_seconds == 60
-    assert snapshot["curve:apyUSD-apxUSD"].interval_seconds == 60
-    assert snapshot["commit:apxUSD Commit"].interval_seconds == 60
-    assert snapshot["yield_distribution"].interval_seconds == 60
+    assert snapshot["security_events"].interval_seconds == 180
+    assert snapshot["mint_backing:apyUSD"].interval_seconds == 180
+    assert snapshot["pendle:apxUSD"].interval_seconds == 180
+    assert snapshot["morpho:PT-apyUSD-18JUN2026-USDC"].interval_seconds == 180
+    assert snapshot["curve:apxUSD-USDC"].interval_seconds == 180
+    assert snapshot["curve:apyUSD-apxUSD"].interval_seconds == 180
+    assert snapshot["commit:apxUSD Commit"].interval_seconds == 180
+    assert snapshot["yield_distribution"].interval_seconds == 180
     assert snapshot["tradfi:SATA"].interval_seconds == 300
 
 
