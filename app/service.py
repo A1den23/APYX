@@ -158,16 +158,17 @@ def _is_web3_connected(web3: Web3) -> bool:
 
 
 def _build_web3(env: EnvConfig) -> Web3:
-    rpc_urls = [env.eth_rpc_url]
-    if env.eth_rpc_fallback_url:
-        rpc_urls.append(env.eth_rpc_fallback_url)
+    fallback_urls = list(env.eth_rpc_fallback_urls)
+    if env.eth_rpc_fallback_url and env.eth_rpc_fallback_url not in fallback_urls:
+        fallback_urls.insert(0, env.eth_rpc_fallback_url)
+    rpc_urls = [env.eth_rpc_url, *fallback_urls]
 
     provider = FailoverHTTPProvider(
         rpc_urls,
         request_kwargs={"timeout": RPC_TIMEOUT_SECONDS},
     )
     web3 = Web3(provider)
-    if env.eth_rpc_fallback_url and not _is_web3_connected(web3):
+    if fallback_urls and not _is_web3_connected(web3):
         provider.activate_next_endpoint(reason="primary RPC unavailable at startup")
     return web3
 

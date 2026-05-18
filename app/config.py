@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -406,6 +407,7 @@ class EnvConfig:
     telegram_chat_id: str
     eth_rpc_url: str
     eth_rpc_fallback_url: str | None = None
+    eth_rpc_fallback_urls: tuple[str, ...] = ()
 
 
 def _required_env(name: str) -> str:
@@ -422,12 +424,44 @@ def _optional_env(name: str) -> str | None:
     return value
 
 
+def _dedupe_urls(urls: tuple[str, ...]) -> tuple[str, ...]:
+    deduped: list[str] = []
+    for url in urls:
+        if url not in deduped:
+            deduped.append(url)
+    return tuple(deduped)
+
+
+def _load_eth_rpc_fallback_urls() -> tuple[str, ...]:
+    fallback_urls: list[str] = []
+    legacy_fallback = _optional_env("ETH_RPC_FALLBACK_URL")
+    if legacy_fallback is not None:
+        fallback_urls.append(legacy_fallback)
+
+    indexed_names = sorted(
+        (
+            name
+            for name in os.environ
+            if re.fullmatch(r"ETH_RPC_FALLBACK_URL_\d+", name)
+        ),
+        key=lambda name: int(name.rsplit("_", 1)[1]),
+    )
+    for name in indexed_names:
+        value = _optional_env(name)
+        if value is not None:
+            fallback_urls.append(value)
+
+    return _dedupe_urls(tuple(fallback_urls))
+
+
 def load_env_config(env_file: str | Path = ".env") -> EnvConfig:
     load_dotenv(env_file)
+    eth_rpc_fallback_urls = _load_eth_rpc_fallback_urls()
     return EnvConfig(
         finnhub_api_key=_required_env("FINNHUB_API_KEY"),
         telegram_bot_token=_required_env("TG_BOT_TOKEN"),
         telegram_chat_id=_required_env("TG_CHAT_ID"),
         eth_rpc_url=_required_env("ETH_RPC_URL"),
-        eth_rpc_fallback_url=_optional_env("ETH_RPC_FALLBACK_URL"),
+        eth_rpc_fallback_url=eth_rpc_fallback_urls[0] if eth_rpc_fallback_urls else None,
+        eth_rpc_fallback_urls=eth_rpc_fallback_urls,
     )

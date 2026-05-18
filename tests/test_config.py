@@ -212,6 +212,8 @@ def test_load_env_config_reads_required_values(monkeypatch) -> None:
     monkeypatch.setenv("TG_CHAT_ID", "12345")
     monkeypatch.setenv("ETH_RPC_URL", "https://rpc.example")
     monkeypatch.setenv("ETH_RPC_FALLBACK_URL", "https://fallback-rpc.example")
+    monkeypatch.setenv("ETH_RPC_FALLBACK_URL_1", "https://fallback-1-rpc.example")
+    monkeypatch.setenv("ETH_RPC_FALLBACK_URL_2", "https://fallback-2-rpc.example")
 
     env = load_env_config()
 
@@ -220,6 +222,11 @@ def test_load_env_config_reads_required_values(monkeypatch) -> None:
     assert env.telegram_chat_id == "12345"
     assert env.eth_rpc_url == "https://rpc.example"
     assert env.eth_rpc_fallback_url == "https://fallback-rpc.example"
+    assert env.eth_rpc_fallback_urls == (
+        "https://fallback-rpc.example",
+        "https://fallback-1-rpc.example",
+        "https://fallback-2-rpc.example",
+    )
 
 
 def test_load_env_config_allows_missing_fallback_rpc(monkeypatch, tmp_path: Path) -> None:
@@ -243,3 +250,4 @@ def test_load_env_config_allows_missing_fallback_rpc(monkeypatch, tmp_path: Path
     env = load_env_config(env_file)
 
     assert env.eth_rpc_fallback_url is None
+    assert env.eth_rpc_fallback_urls == ()
