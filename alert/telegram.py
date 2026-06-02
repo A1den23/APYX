@@ -35,6 +35,7 @@ class TelegramSender:
         self._thresholds_fn: Callable[[], Coroutine] | None = None
         self._help_fn: Callable[[], Coroutine] | None = None
         self._error_fn: Callable[[str], None] | None = None
+        self._recovery_fn: Callable[[], None] | None = None
 
     async def send(self, event: AlertEvent) -> None:
         await self._bot.send_message(chat_id=self._chat_id, text=event.telegram_text())
@@ -51,6 +52,7 @@ class TelegramSender:
         thresholds_fn: Callable[[], Coroutine],
         help_fn: Callable[[], Coroutine],
         error_fn: Callable[[str], None] | None = None,
+        recovery_fn: Callable[[], None] | None = None,
     ) -> None:
         self._status_fn = status_fn
         self._health_fn = health_fn
@@ -59,6 +61,7 @@ class TelegramSender:
         self._thresholds_fn = thresholds_fn
         self._help_fn = help_fn
         self._error_fn = error_fn
+        self._recovery_fn = recovery_fn
         await self._bot.set_my_commands(TELEGRAM_COMMANDS)
         self._poll_task = asyncio.create_task(self._poll_loop())
 
@@ -76,6 +79,8 @@ class TelegramSender:
                 for update in updates:
                     self._offset = update.update_id + 1
                     await self._dispatch(update)
+                if consecutive_failures > 0 and self._recovery_fn is not None:
+                    self._recovery_fn()
                 consecutive_failures = 0
             except Exception as e:
                 consecutive_failures += 1

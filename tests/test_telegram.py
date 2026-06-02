@@ -10,6 +10,17 @@ class FailingBot:
         raise RuntimeError("poll failed token=secret")
 
 
+class RecoveringBot:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def get_updates(self, **kwargs):
+        self.calls += 1
+        if self.calls == 1:
+            raise RuntimeError("poll failed")
+        return []
+
+
 class CommandRegistryBot:
     def __init__(self) -> None:
         self.commands = None
@@ -57,6 +68,27 @@ def test_poll_loop_records_sanitized_errors(monkeypatch) -> None:
     assert errors
     assert "token=<redacted>" in errors[0]
     assert "secret" not in errors[0]
+
+
+def test_poll_loop_records_recovery_after_transient_error(monkeypatch) -> None:
+    sender = TelegramSender("token", "123")
+    sender._bot = RecoveringBot()
+    recoveries: list[None] = []
+    sender._recovery_fn = lambda: recoveries.append(None)
+    sleeps = 0
+
+    async def stop_after_recovery(interval):
+        nonlocal sleeps
+        sleeps += 1
+        if sleeps >= 2:
+            raise asyncio.CancelledError
+
+    monkeypatch.setattr("alert.telegram.asyncio.sleep", stop_after_recovery)
+
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(sender._poll_loop())
+
+    assert recoveries == [None]
 
 
 def test_start_commands_registers_telegram_command_suggestions() -> None:

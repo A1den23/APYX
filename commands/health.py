@@ -30,6 +30,7 @@ class HealthTracker:
         with self._lock:
             m = self._metrics.setdefault(name, MetricHealth())
             m.last_success_at = datetime.now(timezone.utc)
+            m.last_error = None
             m.success_count += 1
 
     def record_failure(self, name: str, error: str) -> None:
@@ -37,6 +38,11 @@ class HealthTracker:
             m = self._metrics.setdefault(name, MetricHealth())
             m.last_error = safe_error_message(error)
             m.fail_count += 1
+
+    def clear_error(self, name: str) -> None:
+        with self._lock:
+            m = self._metrics.setdefault(name, MetricHealth())
+            m.last_error = None
 
     @property
     def uptime(self) -> timedelta:

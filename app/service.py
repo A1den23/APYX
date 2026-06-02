@@ -471,6 +471,7 @@ async def run_service(*, once: bool) -> None:
                 error_fn=lambda error: tracker.record_failure(
                     "telegram_commands", error
                 ),
+                recovery_fn=lambda: tracker.clear_error("telegram_commands"),
             )
             print("Telegram command listener started", flush=True)
         except Exception as e:
